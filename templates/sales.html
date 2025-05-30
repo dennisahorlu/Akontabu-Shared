@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AKONTABU - Sales</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="icon" href="{{url_for('static', filename='images/AKONTABU.jpg')}}" type="image/x-icon">
+    <style>
+        .sales-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .nav-bar {
+            background: #fff;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .nav-links {
+            display: flex;
+            justify-content: space-around;
+        }
+        .nav-link {
+            text-decoration: none;
+            color: #333;
+            padding: 10px 20px;
+            border-radius: 5px;
+            transition: background 0.3s ease;
+        }
+        .nav-link:hover {
+            background: #f0f0f0;
+        }
+        .sales-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+        .new-sale-form {
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+        }
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .submit-btn {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .submit-btn:hover {
+            background: #45a049;
+        }
+        .sales-history {
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .sales-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .sales-table th,
+        .sales-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        .sales-table th {
+            background: #f8f8f8;
+            font-weight: 600;
+        }
+        .filter-section {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .filter-section input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sales-container">
+        <div class="nav-bar">
+            <div class="nav-links">
+                <a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a>
+                <a href="{{ url_for('sales') }}" class="nav-link">Sales</a>
+                <a href="{{ url_for('inventory') }}" class="nav-link">Inventory</a>
+                <a href="{{ url_for('payments') }}" class="nav-link">Payments</a>
+                <a href="{{ url_for('reports') }}" class="nav-link">Reports</a>
+                <a href="{{ url_for('settings') }}" class="nav-link">Settings</a>
+            </div>
+        </div>
+
+        <div class="sales-grid">
+            <div class="new-sale-form">
+                <h2>Record New Sale</h2>
+                <form id="new-sale-form">
+                    <div class="form-group">
+                        <label for="product">Product</label>
+                        <select id="product" name="product" required>
+                            <option value="">Select Product</option>
+                            {% for product in products %}
+                            <option value="{{ product.id }}">{{ product.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="quantity">Quantity</label>
+                        <input type="number" id="quantity" name="quantity" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="price">Price per Unit</label>
+                        <input type="number" id="price" name="price" step="0.01" required readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="customer">Customer Name</label>
+                        <input type="text" id="customer" name="customer">
+                    </div>
+                    <div class="form-group">
+                        <label for="description">Description</label>
+                        <input type="text" id="description" name="description">
+                    </div>
+                    <button type="submit" class="submit-btn">Record Sale</button>
+                </form>
+            </div>
+
+            <div class="sales-history">
+                <h2>Sales History</h2>
+                <div class="filter-section">
+                    <input type="date" id="start-date" placeholder="Start Date">
+                    <input type="date" id="end-date" placeholder="End Date">
+                    <button onclick="filterSales()" class="submit-btn">Filter</button>
+                </div>
+
+                <!-- Displaying message if no transactions are found -->
+                {% if message %}
+                    <p style="color:red;">{{ message }}</p>
+                {% endif %}
+
+                {% if sales %}
+                    <table class="sales-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Price</th>
+                            <th>Total</th>
+                            <th>Customer</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sales-table-body">
+                        {% for sale in sales %}
+                        <tr>
+                            <td>{{ sale.date.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ sale.product.name }}</td>
+                            <td>{{ sale.quantity }}</td>
+                            <td>${{ sale.price }}</td>
+                            <td>{{ sale.total_amount|currency }}</td>
+                            <td>{{ sale.customer or 'N/A' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                    <p>No sales to display.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('new-sale-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+    
+            // Get form data
+            const productSelect = document.getElementById('product');
+            const formData = {
+                product_id: productSelect.value,
+                quantity: document.getElementById('quantity').value,
+                price: document.getElementById('price').value,
+                customer: document.getElementById('customer').value,
+                description: document.getElementById('description').value
+            };
+        document.getElementById('product').addEventListener('change', async function() {
+            const productId = this.value;
+            if (!productId) return;
+    
+            try {
+                const response = await fetch(`/api/products/${productId}`);
+                const product = await response.json();
+                document.getElementById('price').value = product.selling_price;
+            } catch (error) {
+                console.error('Error fetching product price:', error);
+            }
+        });    
+    
+            // Validate product selection
+            if (!formData.product_id) {
+                alert('Please select a product');
+                return;
+            }
+    
+            try {
+                const response = await fetch('/sales', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+    
+                const data = await response.json();
+    
+                if (response.ok) {
+                    alert('Sale recorded successfully!');
+                    document.getElementById('new-sale-form').reset();
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'Failed to record sale');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            }
+        });
+    
+        function filterSales() {
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+    
+            if (!startDate || !endDate) {
+                alert('Please select both start and end dates.');
+                return;
+            }
+    
+            const url = new URL(window.location.href);
+            url.searchParams.set('start', startDate);
+            url.searchParams.set('end', endDate);
+            window.location.href = url.toString();
+        }
+    </script>
+    
+</body>
+</html> 

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AKONTABU - Sign In</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="icon" href="{{url_for('static', filename='images/AKONTABU.jpg')}}" type="image/x-icon">
+    <script></script>
+</head>
+<body>
+    <div class="container">
+        <div class="form-container">
+            <h1>Welcome Back</h1>
+            <form id="login-form">
+                <div class="form-group">
+                    <input type="email" id="email" name="email" required>
+                    <label for="email">Email Address</label>
+                </div>
+                <div class="form-group">
+                    <input type="password" id="password" name="password" required>
+                    <label for="password">Password</label>
+                </div>
+                <div class="form-options">
+                    <label class="remember-me">
+                        <input type="checkbox" name="remember">
+                        Remember me
+                    </label>
+                </div>
+                <button type="submit" class="submit-btn">Sign In</button>
+            </form>
+            <p class="signup-link">Don't have an account? <a href="{{ url_for('signup') }}">Sign Up</a></p>
+        </div>
+        <div class="image-container">
+            <div class="content">
+                <h2>AKONTABU</h2>
+                <p>Track your finances, grow your business, and make informed decisions with our powerful tools.</p>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    window.location.href = '/dashboard';
+                } else {
+                    alert(data.message);
+                }
+            } catch (error) {
+                alert('An error occurred. Please try again.');
+            }
+        });
+    </script>
+</body>
+</html> 

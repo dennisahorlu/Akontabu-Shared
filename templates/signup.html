@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AKONTABU - Sign Up</title>
+    <link rel="icon" href="{{ url_for('static', filename='images/AKONTABU.jpg')}}" type="image/x-icon">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="{{ url_for('static', filename='js/signup.js')}}"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+
+</head>
+<body>
+    <div class="container">
+        <div class="form-container">
+            <h1>WELCOME TO AKONTABU</h1>
+            <h1>Create Account</h1>
+            <form id="signup-form">
+                <div class="form-group">
+                    <input type="text" id="name" name="name" required>
+                    <label for="name">Full Name</label>
+                </div>
+                <div class="form-group">
+                    <input type="email" id="email" name="email" required>
+                    <label for="email">Email Address</label>
+                </div>
+                <div class="form-group">
+                    <input type="password" id="password" name="password" required>
+                    <label for="password">Password</label>
+                </div>
+                <div class="form-group">
+                    <input type="text" id="business_name" name="business_name">
+                    <label for="business_name">Business Name (Optional)</label>
+                </div>
+                <div class="form-group">
+                    <input type="tel" id="phone" name="phone">
+                    <label for="phone">Phone Number (Optional)</label>
+                </div>
+                <div class="form-group">
+                    <select id="gender" name="gender">
+                        <option value="">Select Gender</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <button type="submit" class="submit-btn">Sign Up</button>
+                <button type="button" id="googleSignIn" class="btn-google">
+                    <img src="{{ url_for('static', filename='images/google.png') }}" alt="Google" >
+                    Sign up with Google
+                </button>
+            </form>
+            <p class="login-link">Already have an account? <a href="{{ url_for('login') }}">Sign In</a></p>
+        </div>
+        <div class="image-container">
+            <div class="content">
+                <h2>AKONTABU</h2>
+                <p>Track your finances, grow your business, and make informed decisions with our powerful tools.</p>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.getElementById('signup-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value,
+                business_name: document.getElementById('business_name').value,
+                phone: document.getElementById('phone').value,
+                gender: document.getElementById('gender').value
+            };
+            
+            try {
+                const response = await fetch('/signup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('Account created successfully! Please login.');
+                    window.location.href = '/login';
+                } else {
+                    alert(data.message);
+                }
+            } catch (error) {
+                alert('An error occurred. Please try again.');
+            }
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,244 @@
+:root {
+    --primary-color: #2563eb;
+    --secondary-color: #1e40af;
+    --text-color: #1f2937;
+    --error-color: #dc2626;
+    --success-color: #059669;
+    --background-color: #f3f4f6;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+
+body {
+    background-color: var(--background-color);
+    color: var(--text-color);
+    min-height: 100vh;
+}
+
+.container {
+    display: flex;
+    min-height: 100vh;
+}
+
+.form-container {
+    flex: 1;
+    background: linear-gradient(to top right, #0B3D2E, #B8860B);
+    transition: all 0.3s ease;
+    box-shadow: #0B3D2E;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-width: 500px;
+    margin: 0 auto;
+    
+}
+
+.image-container {
+    flex: 1;
+    background: url('/static/images/AKONTABU.jpg') no-repeat;
+    /* background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    color: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.image-container::before {
+    content: '';
+    position: absolute;
+    width: 200%;
+    height: 200%;
+    background: url('../images/pattern.svg') repeat;
+    opacity: 0.1;
+    animation: slide 20s linear infinite;
+}
+
+@keyframes slide {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+}
+
+.content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+}
+
+h1 {
+    font-size: 2rem;
+    margin-bottom: 2rem;
+    color: var(--text-color);
+}
+
+.form-group {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+input, select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 3px solid #e5e7eb;
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    box-shadow: #0B3D2E;
+}
+
+input:focus, select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+label {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6b7280;
+    transition: all 0.3s ease;
+    pointer-events: none;
+}
+
+input:focus ~ label,
+input:not(:placeholder-shown) ~ label {
+    top: 0;
+    font-size: 0.875rem;
+    background-color: white;
+    padding: 0 0.25rem;
+}
+
+.password-requirements {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.password-requirements p {
+    margin: 0.25rem 0;
+}
+
+.password-requirements p.valid {
+    color: var(--success-color);
+}
+
+.submit-btn {
+    width: 100%;
+    padding: 0.75rem;
+    background-color: var(--primary-color);
+    color: white;
+    border: #B8860B;
+    border-radius: 6px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.submit-btn:hover {
+    background-color: var(--secondary-color);
+}
+
+.divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 1.5rem 0;
+}
+
+.divider::before,
+.divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.divider span {
+    padding: 0 1rem;
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
+.login-link,
+.signup-link {
+    text-align: center;
+    margin-top: 1.5rem;
+}
+
+.login-link a, .login-link, 
+.signup-link a {
+    color: white;
+    text-decoration: none;
+}
+
+.form-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.remember-me {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    position: static;
+    transform: none;
+}
+
+.forgot-password {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column-reverse;
+    }
+    
+    .image-container {
+        min-height: 200px;
+    }
+    
+    .form-container {
+        padding: 1.5rem;
+    }
+} 
+
+.btn-google {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px; /* space between image and text */
+    margin-top: 1.5rem;
+    background-color: var(--primary-color);
+    color:white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    width: 100%; /* Full width if needed */
+  }
+  
+  .btn-google:hover {
+    background-color: var(--secondary-color);
+  }
+  
+  .btn-google img {
+    height: 20px;
+    width: 20px;
+    object-fit: contain;
+  }
+  

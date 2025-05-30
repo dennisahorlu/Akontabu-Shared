@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AKONTABU - Payments</title>
+    <!-- <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}"> -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        .payment-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .nav-bar {
+            background: #fff;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .nav-links {
+            display: flex;
+            justify-content: space-around;
+        }
+        .nav-link {
+            text-decoration: none;
+            color: #333;
+            padding: 10px 20px;
+            border-radius: 5px;
+            transition: background 0.3s ease;
+        }
+        .nav-link:hover {
+            background: #f0f0f0;
+        }
+        .payment-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .payment-form {
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+        }
+        
+        .form-group input, 
+        .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .submit-btn {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+        }
+        
+        .payment-list {
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .payment-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .payment-table th, 
+        .payment-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .payment-category {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f8f8;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="payment-container">
+        <div class="nav-bar">
+            <div class="nav-links">
+                <a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a>
+                <a href="{{ url_for('sales') }}" class="nav-link">Sales</a>
+                <a href="{{ url_for('inventory') }}" class="nav-link">Inventory</a>
+                <a href="{{ url_for('payments') }}" class="nav-link">Payments</a>
+                <a href="{{ url_for('reports') }}" class="nav-link">Reports</a>
+                <a href="{{ url_for('settings') }}" class="nav-link">Settings</a>
+            </div>
+        </div>
+
+        <div class="payment-grid">
+            <div class="payment-form">
+                <h2>Record New Payment</h2>
+                <form id="payment-form">
+                    <div class="form-group">
+                        <label for="payment_type">Payment Type</label>
+                         <select id="payment_type" name="payment_type" required>
+                            <option value="">Select payment type</option>
+                            <option value="product">Product Purchase</option>
+                            <option value="transportation">Transportation</option>
+                            <option value="carriage">Carriage</option>
+                            <option value="rent">Rent</option>
+                            <option value="utility">Utility</option>
+                            <option value="other">Other Payment</option>
+                        </select> 
+                    <!-- <select id="cost_type" name="cost_type" required>
+                        <option value="">Select cost type</option>
+                        <option value="purchase">Product Purchase</option>
+                        <option value="transport">Transportation</option>
+                        <option value="storage">Storage</option>
+                        <option value="other">Other</option>
+                    </select> -->
+                    </div>
+
+                     <!-- Product Purchase Fields (shown when product is selected) -->
+                     <div id="product-fields" class="payment-category" style="display: none;"> 
+                         <div class="form-group">
+                            <label for="product_name">Product</label>
+                            <input type="text" id="product_name" name="product_name" placeholder="Enter product name" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="product_quantity">Quantity</label>
+                            <input type="number" id="product_quantity" name="quantity" min="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="total_cost">Total Cost</label>
+                            <input type="number" id="total_cost" name="total_cost" step="0.01" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="profit_margin">Profit Margin (%)</label>
+                            <input type="number" id="profit_margin" name="profit_margin" step="0.1" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="calculated_price">Calculated Selling Price (per unit)</label>
+                            <input type="number" id="calculated_price" name="calculated_price" step="0.01" readonly>
+                        </div>
+                        <!-- <div class="form-group">
+                            <label for="cost_type">Cost Type</label>
+                            <select id="cost_type" name="cost_type" required>
+                                <option value="">Select cost type</option>
+                                <option value="purchase">Product Purchase</option>
+                                <option value="transport">Transportation</option>
+                                <option value="storage">Storage</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div> -->
+
+                    </div> 
+
+                    <!-- Other Payment Fields -->
+                    <div id="other-fields" class="payment-category" style="display: none;">
+                        <div class="form-group">
+                            <label for="amount">Amount</label>
+                            <input type="number" id="amount" name="amount" step="0.01" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="description">Description</label>
+                            <input type="text" id="description" name="description">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="submit-btn">Record Payment</button>
+                </form>
+            </div> 
+
+            <div class="payment-list">
+                <h2>Payment History</h2>
+                <table class="payment-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in payments %}
+                        <tr>
+                            <td>{{ payment.date.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ payment.payment_type }}</td>
+                            <td>{{ payment.description }}</td>
+                            <td>{{ payment.amount|currency }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- <script> 
+
+
+     // Calculate and display selling price based on inputs
+function calculateSellingPrice() {
+    const totalCost = parseFloat(document.getElementById('total_cost').value) || 0;
+    const quantity = parseFloat(document.getElementById('product_quantity').value) || 1;
+    const profitMargin = parseFloat(document.getElementById('profit_margin').value) || 0;
+    
+    if (totalCost > 0 && quantity > 0) {
+        const costPerUnit = totalCost / quantity;
+        const sellingPrice = costPerUnit * (1 + (profitMargin / 100));
+        document.getElementById('calculated_price').value = sellingPrice.toFixed(2);
+    }
+}
+
+// Set up event listeners for auto-calculation
+document.getElementById('total_cost').addEventListener('input', calculateSellingPrice);
+document.getElementById('product_quantity').addEventListener('input', calculateSellingPrice);
+document.getElementById('profit_margin').addEventListener('input', calculateSellingPrice);
+
+// Handle payment type selection to show/hide fields
+document.getElementById('payment_type').addEventListener('change', function() {
+    const paymentType = this.value;
+    document.getElementById('product-fields').style.display = 
+        paymentType === 'product' ? 'block' : 'none';
+    document.getElementById('other-fields').style.display = 
+        ['transportation', 'carriage', 'rent', 'utility', 'other'].includes(paymentType) ? 'block' : 'none';
+});
+
+// Form submission handler
+document.getElementById('payment-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const paymentType = document.getElementById('payment_type').value;
+    const formData = {
+        payment_type: paymentType,
+        amount: 0,
+        description: ''
+    };
+
+    try {
+        // Handle product purchases differently
+        if (paymentType === 'product') {
+            // Validate required fields
+            const productName = document.getElementById('product_name').value.trim();
+            const quantity = parseFloat(document.getElementById('product_quantity').value);
+            const totalCost = parseFloat(document.getElementById('total_cost').value);
+            const profitMargin = parseFloat(document.getElementById('profit_margin').value);
+            
+            if (!productName || isNaN(quantity) || quantity <= 0 || 
+                isNaN(totalCost) || totalCost <= 0 || isNaN(profitMargin)) {
+                throw new Error('Please fill all product fields with valid values');
+            }
+
+            // Calculate values
+            const costPerUnit = totalCost / quantity;
+            const sellingPrice = costPerUnit * (1 + (profitMargin / 100));
+            
+            // Prepare data for submission
+            formData.product_name = productName;
+            formData.quantity = quantity;
+            formData.total_cost = totalCost;
+            formData.cost_per_unit = costPerUnit;
+            formData.profit_margin = profitMargin;
+            formData.selling_price = sellingPrice;
+            formData.amount = totalCost;
+            formData.description = `Purchase of ${quantity} ${productName} at ${profitMargin}% margin`;
+        } 
+        // Handle other payment types
+        else {
+            const amount = parseFloat(document.getElementById('amount').value);
+            const description = document.getElementById('description').value.trim() || 
+                               `${paymentType} payment`;
+            
+            if (isNaN(amount) || amount <= 0) {
+                throw new Error('Please enter a valid payment amount');
+            }
+
+            formData.amount = amount;
+            formData.description = description;
+        }
+
+        // Submit to server
+        const response = await fetch('/api/payments', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to record payment');
+        }
+
+        // Handle successful response
+        const payment = await response.json();
+
+        // Add new payment to the table
+        const paymentRow = `
+            <tr>
+                <td>${payment.date}</td>
+                <td>${payment.payment_type}</td>
+                <td>${payment.description}</td>
+                <td>${payment.amount.toFixed(2)}</td>
+            </tr>
+        `;
+        
+        // Insert at top of table
+        const tbody = document.querySelector('.payment-table tbody');
+        tbody.insertAdjacentHTML('afterbegin', paymentRow);
+
+        // Reset form
+        document.getElementById('payment-form').reset();
+        document.getElementById('product-fields').style.display = 'none';
+        document.getElementById('other-fields').style.display = 'none';
+        
+        // Show success message
+        alert('Payment recorded successfully!');
+
+    } catch (error) {
+        console.error('Payment error:', error);
+        alert(`Error: ${error.message}`);
+    }
+});
+    
+        // Show/hide fields based on payment type
+         document.getElementById('payment_type').addEventListener('change', function() {
+             const paymentType = this.value;
+             document.getElementById('product-fields').style.display = 
+                 paymentType === 'product' ? 'block' : 'none';
+             document.getElementById('other-fields').style.display = 
+                 ['transportation', 'carriage', 'rent', 'utility', 'other'].includes(paymentType) ? 'block' : 'none';
+         });
+
+         //Add this function to calculate selling price
+     function calculateSellingPrice() {
+         const totalCost = parseFloat(document.getElementById('total_cost').value) || 0;
+         const quantity = parseFloat(document.getElementById('product_quantity').value) || 1;
+         const profitMargin = parseFloat(document.getElementById('profit_margin').value) || 0;
+    
+         if (totalCost > 0 && quantity > 0) {
+             const costPerUnit = totalCost / quantity;
+             const sellingPrice = costPerUnit * (1 + (profitMargin / 100));
+             document.getElementById('calculated_price').value = sellingPrice.toFixed(2);
+         }
+     }
+
+     //Add event listeners to trigger calculations
+     document.getElementById('total_cost').addEventListener('input', calculateSellingPrice);
+     document.getElementById('product_quantity').addEventListener('input', calculateSellingPrice);
+     document.getElementById('profit_margin').addEventListener('input', calculateSellingPrice);
+
+       //  Auto-fill product cost when product is selected
+        document.getElementById('product_id').addEventListener('change', async function() {
+            const productId = this.value;
+            const response = await fetch(`/api/products/${productId}`);
+            const product = await response.json();
+            document.getElementById('product_cost').value = product.cost_price;
+        });
+
+         //Form submission
+         document.getElementById('payment-form').addEventListener('submit', async function(e) {
+             e.preventDefault();
+            
+             const formData = {
+                 payment_type: document.getElementById('payment_type').value,
+                 amount: 0,
+                 description: ''
+             };
+
+             if (formData.payment_type === 'product') {
+                 formData.product_id = document.getElementById('product_name').value;
+                 formData.quantity = document.getElementById('product_quantity').value;
+                 formData.cost = document.getElementById('product_cost').value;
+                 formData.profit_margin = document.getElementById('profit_margin').value;
+                 formData.amount = formData.quantity * formData.cost;
+                 formData.description = `Purchase of ${formData.quantity} units`;
+
+
+                
+                // Calculate selling price and update inventory
+                 const sellingPrice = formData.cost * (1 + (formData.profit_margin / 100));
+                 await fetch('/api/update_product_price', {
+                     method: 'POST',
+                     headers: { 'Content-Type': 'application/json' },
+                     body: JSON.stringify({
+                         product_id: formData.product_name,
+                         cost_price: formData.cost,
+                         selling_price: sellingPrice,
+                         quantity: formData.quantity
+                     })
+                 });
+             } else {
+                 formData.amount = document.getElementById('amount').value;
+                 formData.description = document.getElementById('description').value || 
+                                      `${formData.payment_type} payment`;
+             }
+
+             // Submit payment
+             const response = await fetch('/api/payments', {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify(formData)
+             });
+
+            if (response.ok) {
+                alert('Payment recorded successfully!');
+                window.location.reload();
+            } else {
+                alert('Error recording payment');
+            }
+        });
+
+             if (response.ok) {
+         alert('Payment recorded successfully!');
+         const payment = await response.json();  // Assuming the API returns the new payment object
+
+         // Add the new payment to the list dynamically
+         const newRow = `
+             <tr>
+                 <td>${payment.date}</td>
+                 <td>${payment.payment_type}</td>
+                 <td>${payment.description}</td>
+                 <td>${payment.amount}</td>
+             </tr>
+         `;
+         document.querySelector('.payment-table tbody').innerHTML += newRow;
+
+         // Reset the form after submission
+         document.getElementById('payment-form').reset();
+          } else {
+         alert('Error recording payment');
+      }
+     ;
+    </script> -->
+    <script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    // Show/hide form fields based on payment type
+    const paymentTypeSelect = document.getElementById('payment_type');
+    const productFields = document.getElementById('product-fields');
+    const otherFields = document.getElementById('other-fields');
+
+    paymentTypeSelect.addEventListener('change', function () {
+        const type = this.value;
+        productFields.style.display = (type === 'product') ? 'block' : 'none';
+        otherFields.style.display = ['transportation', 'carriage', 'rent', 'utility', 'other'].includes(type) ? 'block' : 'none';
+    });
+
+    // Calculate selling price
+    function calculateSellingPrice() {
+        const totalCost = parseFloat(document.getElementById('total_cost').value) || 0;
+        const quantity = parseFloat(document.getElementById('product_quantity').value) || 1;
+        const profitMargin = parseFloat(document.getElementById('profit_margin').value) || 0;
+
+        if (totalCost > 0 && quantity > 0) {
+            const costPerUnit = totalCost / quantity;
+            const sellingPrice = costPerUnit * (1 + (profitMargin / 100));
+            document.getElementById('calculated_price').value = sellingPrice.toFixed(2);
+        }
+    }
+
+    document.getElementById('total_cost').addEventListener('input', calculateSellingPrice);
+    document.getElementById('product_quantity').addEventListener('input', calculateSellingPrice);
+    document.getElementById('profit_margin').addEventListener('input', calculateSellingPrice);
+
+    // Submit payment form
+    document.getElementById('payment-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const type = paymentTypeSelect.value;
+        const formData = { payment_type: type, amount: 0, description: '' };
+
+        try {
+            if (type === 'product') {
+                const productName = document.getElementById('product_name').value.trim();
+                const quantity = parseFloat(document.getElementById('product_quantity').value);
+                const totalCost = parseFloat(document.getElementById('total_cost').value);
+                const profitMargin = parseFloat(document.getElementById('profit_margin').value);
+
+                if (!productName || isNaN(quantity) || isNaN(totalCost) || isNaN(profitMargin)) {
+                    throw new Error('Fill all product fields with valid values');
+                }
+
+                const costPerUnit = totalCost / quantity;
+                const sellingPrice = costPerUnit * (1 + (profitMargin / 100));
+
+                Object.assign(formData, {
+                    product_name: productName,
+                    quantity,
+                    total_cost: totalCost,
+                    cost_per_unit: costPerUnit,
+                    profit_margin: profitMargin,
+                    selling_price: sellingPrice,
+                    amount: totalCost,
+                    description: `Purchase of ${quantity} ${productName} at ${profitMargin}% margin`
+                });
+
+            } else {
+                const amount = parseFloat(document.getElementById('amount').value);
+                const description = document.getElementById('description').value.trim() || `${type} payment`;
+
+                if (isNaN(amount) || amount <= 0) {
+                    throw new Error('Enter a valid payment amount');
+                }
+
+                formData.amount = amount;
+                formData.description = description;
+            }
+
+            const response = await fetch('/api/payments', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Failed to save payment');
+            }
+
+            const payment = await response.json();
+            const newRow = `
+                <tr>
+                    <td>${payment.date}</td>
+                    <td>${payment.payment_type}</td>
+                    <td>${payment.description}</td>
+                    <td>${parseFloat(payment.amount).toFixed(2)}</td>
+                </tr>
+            `;
+            document.querySelector('.payment-table tbody').insertAdjacentHTML('afterbegin', newRow);
+
+            this.reset();
+            productFields.style.display = 'none';
+            otherFields.style.display = 'none';
+            alert('Payment recorded successfully!');
+
+        } catch (err) {
+            alert(`Error: ${err.message}`);
+            console.error(err);
+        }
+    });
+});
+</script>
+
+</body> 
+</html>
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Record Payment</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://kit.fontawesome.com/a2e0f2df1f.js" crossorigin="anonymous"></script>
+    <style>
+        .form-section { display: none; }
+        .table-section { display: none; }
+    </style>
+</head>
+<body class="bg-light">
+<div class="container py-5">
+    <div class="card shadow-lg rounded-4 mb-4">
+        <div class="card-body">
+            <h3 class="mb-4 text-center"><i class="fas fa-wallet me-2"></i>Record a Payment</h3>
+
+            <form id="payment-form">
+                Date
+                <div class="mb-3">
+                    <label for="payment_date" class="form-label"><i class="fas fa-calendar-alt me-1"></i>Payment Date</label>
+                    <input type="date" class="form-control" id="payment_date" name="payment_date" required>
+                </div>
+
+                Payment Type
+                <div class="mb-3">
+                    <label for="payment_type" class="form-label"><i class="fas fa-list-alt me-1"></i>Payment Type</label>
+                    <select class="form-select" id="payment_type" name="payment_type" required>
+                        <option value="">Select type</option>
+                        <option value="product">Product</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+                Product Section
+                <div id="product-fields" class="form-section">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label"><i class="fas fa-box-open me-1"></i>Product Name</label>
+                            <input type="text" class="form-control" name="product_name" placeholder="e.g. Sugar" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label"><i class="fas fa-sort-numeric-up me-1"></i>Quantity</label>
+                            <input type="number" step="any" class="form-control" name="quantity" placeholder="e.g. 10" />
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label"><i class="fas fa-money-bill-wave me-1"></i>Total Cost</label>
+                            <input type="number" step="any" class="form-control" name="total_cost" placeholder="e.g. 150.00" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label"><i class="fas fa-percentage me-1"></i>Profit Margin (%)</label>
+                            <input type="number" step="any" class="form-control" name="profit_margin" placeholder="e.g. 20" />
+                        </div>
+                    </div>
+                </div>
+
+                Other Payment Section
+                <div id="other-fields" class="form-section">
+                    <div class="mb-3">
+                        <label class="form-label"><i class="fas fa-dollar-sign me-1"></i>Amount</label>
+                        <input type="number" step="any" class="form-control" name="amount" placeholder="e.g. 50.00" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label"><i class="fas fa-align-left me-1"></i>Description</label>
+                        <textarea class="form-control" name="description" rows="3" placeholder="e.g. Utility bill..."></textarea>
+                    </div>
+                </div>
+
+                Submit
+                <div class="text-center mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg px-4">
+                        <i class="fas fa-check-circle me-2"></i>Submit Payment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    Payment History Table
+    <div class="card shadow-sm table-section" id="payment-history-card">
+        <div class="card-body">
+            <h5 class="card-title mb-3"><i class="fas fa-history me-2"></i>Recent Payments</h5>
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped" id="payment-history">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Details</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+JavaScript -->
+<!-- <script>
+    const typeSelector = document.getElementById('payment_type');
+    const productFields = document.getElementById('product-fields');
+    const otherFields = document.getElementById('other-fields');
+    const paymentForm = document.getElementById('payment-form');
+    const historySection = document.getElementById('payment-history-card');
+    const historyTable = document.querySelector('#payment-history tbody');
+
+    typeSelector.addEventListener('change', () => {
+        const type = typeSelector.value;
+        if (type === 'product') {
+            productFields.style.display = 'block';
+            otherFields.style.display = 'none';
+        } else if (type === 'other') {
+            otherFields.style.display = 'block';
+            productFields.style.display = 'none';
+        } else {
+            productFields.style.display = 'none';
+            otherFields.style.display = 'none';
+        }
+    });
+
+    paymentForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(paymentForm);
+        const data = Object.fromEntries(formData.entries());
+
+        try {
+            const res = await fetch('/api/payments', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+
+            const result = await res.json();
+            if (res.ok) {
+                alert('✅ Payment recorded!');
+                addToHistoryTable(data);
+                paymentForm.reset();
+                productFields.style.display = 'none';
+                otherFields.style.display = 'none';
+            } else {
+                alert(result.message || '⚠️ Submission error.');
+            } -->
+        <!-- } catch (err) {
+            alert('❌ Network error. Try again.');
+        }
+    }); -->
+
+    <!-- function addToHistoryTable(data) {
+        const row = document.createElement('tr');
+        const type = data.payment_type;
+        const date = data.payment_date;
+        let detail = '-';
+        let amount = 0;
+
+        if (type === 'product') {
+            detail = `${data.product_name} (Qty: ${data.quantity})`;
+            amount = data.total_cost || 0;
+        } else {
+            detail = data.description || '-';
+            amount = data.amount || 0;
+        }
+
+        row.innerHTML = `
+            <td>${date}</td>
+            <td class="text-capitalize">${type}</td>
+            <td>${detail}</td>
+            <td>₵${parseFloat(amount).toFixed(2)}</td>
+        `;
+
+        historyTable.prepend(row);
+        historySection.style.display = 'block';
+    }
+</script>
+</body>
+</html> -->
