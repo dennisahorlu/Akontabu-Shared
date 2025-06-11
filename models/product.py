@@ -35,6 +35,18 @@ class Product(db.Model):
         self.selling_price = round(self.cost_price * (1 + (self.profit_margin / 100)), 2)
         return self.selling_price
     
+    # Add this to your Product class
+    @property
+    def current_value(self):
+        """Calculate current inventory value"""
+        price = self.selling_price if self.selling_price is not None else self.price
+        return self.quantity * (price or 0)
+
+    @property
+    def is_low_stock(self):
+        """Check if product is below minimum stock level"""
+        return self.quantity <= self.min_stock_level
+
     class ProductCost(db.Model):
         __tablename__ = 'product_costs'
     

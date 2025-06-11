@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AKONTABU - Inventory</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <!-- <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}"> -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="icon" href="{{url_for('static', filename='images/AKONTABU.jpg')}}" type="image/x-icon">
     <style>
@@ -121,6 +121,17 @@
             border-radius: 4px;
             flex: 1;
         }
+        .low-stock {
+            color: #d32f2f;
+            font-weight: bold;
+        }
+        .stock-warning {
+            font-size: 0.8em;
+            background: #ffebee;
+            padding: 2px 5px;
+            border-radius: 3px;
+            margin-left: 5px;
+        }
     </style>
 </head>
 <body>
@@ -136,7 +147,7 @@
             </div>
         </div>
 
-        <div class="inventory-grid">
+        <!-- <div class="inventory-grid">
             <div class="new-product-form">
                 <h2>Add New Product</h2>
                 <form id="new-product-form">
@@ -154,9 +165,9 @@
                     </div>
                     <button type="submit" class="submit-btn">Add Product</button>
                 </form>
-            </div>
+            </div> -->
 
-            <div class="inventory-list">
+            <!-- <div class="inventory-list">
                 <h2>Product Inventory</h2>
                 <div class="search-section">
                     <input type="text" id="search" placeholder="Search products...">
@@ -166,18 +177,34 @@
                         <tr>
                             <th>Product Name</th>
                             <th>Quantity</th>
-                            <th>Price</th>
+                            <th>Cost Price</th>
+                            <th>Selling Price</th>
+                            <th>Profit Margin</th>
                             <th>Total Value</th>
-                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="inventory-table-body">
                         {% for product in products %}
                         <tr>
                             <td>{{ product.name }}</td>
-                            <td>{{ product.quantity }}</td>
-                            <td>${{ product.selling_price }}</td>
-                            <td>${{ product.quantity * product.selling_price }}</td>
+                            <td class="{% if product.quantity <= product.min_stock_level %}low-stock{% endif %}">
+                                {{ product.quantity }}
+                                {% if product.quantity <= product.min_stock_level %}
+                                <span class="stock-warning">(Low Stock)</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ product.cost_price|currency }}</td>
+                            <td>{{ product.display_price|currency }}</td>
+                            <td>
+                                {% if product.profit_margin %}
+                                {{ "%.1f"|format(product.profit_margin) }}%
+                                {% else %}
+                                N/A
+                                {% endif %}
+                            </td>
+                            <td>{{ product.total_value|currency }}</td>
+                        
+                        {% endfor %}
                             <td>
                                 <button onclick="editProduct('{{ product.id }}')" class="action-btn edit-btn">Edit</button>
                                 <button onclick="updateStock('{{ product.id }}')" class="action-btn stock-btn">Update Stock</button>
@@ -188,6 +215,95 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+    </div> -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AKONTABU - Inventory</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="icon" href="{{url_for('static', filename='images/AKONTABU.jpg')}}" type="image/x-icon">
+    <style>
+        /* Your existing styles... */
+        .low-stock {
+            color: #d32f2f;
+            font-weight: bold;
+        }
+        .stock-warning {
+            font-size: 0.8em;
+            background: #ffebee;
+            padding: 2px 5px;
+            border-radius: 3px;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="inventory-container">
+        <div class="nav-bar">
+            <div class="nav-links">
+                <a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a>
+                <a href="{{ url_for('sales') }}" class="nav-link">Sales</a>
+                <a href="{{ url_for('inventory') }}" class="nav-link">Inventory</a>
+                <a href="{{ url_for('payments') }}" class="nav-link">Payments</a>
+                <a href="{{ url_for('reports') }}" class="nav-link">Reports</a>
+                <a href="{{ url_for('settings') }}" class="nav-link">Settings</a>
+            </div>
+        </div>
+
+        <div class="inventory-list">
+            <h2>Product Inventory</h2>
+            <div class="search-section">
+                <input type="text" id="search" placeholder="Search products..." oninput="filterProducts()">
+            </div>
+            <table class="inventory-table">
+                <thead>
+                    <tr>
+                        <th>Product Name</th>
+                        <th>Quantity</th>
+                        <th>Cost Price</th>
+                        <th>Selling Price</th>
+                        <th>Profit Margin</th>
+                        <th>Total Value</th>
+                    </tr>
+                </thead>
+                <tbody id="inventory-table-body">
+                    {% for product in products %}
+                    <tr>
+                        <td>{{ product.name }}</td>
+                        <td class="{% if product.quantity <= product.min_stock_level %}low-stock{% endif %}">
+                            {{ product.quantity }}
+                            {% if product.quantity <= product.min_stock_level %}
+                            <span class="stock-warning">(Low Stock)</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ product.cost_price|currency }}</td>
+                        <td>
+                            {% if product.selling_price %}
+                                {{ product.selling_price|currency }}
+                            {% else %}
+                                {{ product.price|currency }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if product.profit_margin %}
+                                {{ "%.1f"|format(product.profit_margin) }}%
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% set price = product.selling_price if product.selling_price else product.price %}
+                            {{ (product.quantity * (price or 0))|currency }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
         </div>
     </div>
 

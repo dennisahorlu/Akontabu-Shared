@@ -6,6 +6,7 @@ from sqlalchemy.orm import joinedload
 from flask_login import current_user, login_required, login_user
 from extensions import db, login_manager
 from models import User, Product, Sale, Payment
+import math
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
@@ -30,6 +31,9 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.close()
 
+def round_up_to_half(v): 
+    return math.ceil(v * 2) / 2
+
 # Auth middleware
 @app.before_request
 def load_user():
@@ -43,14 +47,18 @@ def load_user(user_id):
 
 
 # Custom Jinja filter for Ghana Cedis formatting
-@app.template_filter('ghs')
-def format_ghs(value):
-    if value is None:
-        return "GHS 0.00"
-    try:
-        return "GHS {:,.2f}".format(float(value))
-    except (ValueError, TypeError):
-        return "GHS 0.00"
+# @app.template_filter('ghs')
+# def format_ghs(value):
+#     if value is None:
+#         return "GHS 0.00"
+#     try:
+#         return "GHS {:,.2f}".format(float(value))
+#     except (ValueError, TypeError):
+#         return "GHS 0.00"
+
+@app.template_filter('currency')
+def currency_format(value):
+    return f"₵{float(value):,.2f}"
 
 @app.context_processor
 def inject_user():
@@ -304,10 +312,10 @@ def sales():
 
 # Placeholder routes for other pages
 @app.route('/payments')
+@login_required  # Use this instead of manual session checking
 def payments():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    return render_template('payments.html')
+    payments = Payment.query.filter_by(user_id=current_user.id).order_by(Payment.date.desc()).all()
+    return render_template('payments.html', payments=payments)
 
 @app.route('/reports')
 def reports():
@@ -401,23 +409,34 @@ def record_payment():
     data = request.get_json()
     
     try:
-        product = None  # Initialize product variable
+        product = None
         
         if data['payment_type'] == 'product':
-            # Validate product fields
-            if not all(key in data for key in ['product_name', 'quantity', 'total_cost', 'profit_margin']):
+            # Validate all required product fields
+            required_fields = [
+                'product_name', 'quantity', 'base_cost',
+                'transportation', 'carriage', 'profit_margin', 'calculated_price'
+            ]
+            if not all(key in data for key in required_fields):
                 return jsonify({'message': 'Missing required product fields'}), 400
 
             # Convert and validate numeric fields
             try:
                 quantity = float(data['quantity'])
-                total_cost = float(data['total_cost'])
+                base_cost = float(data['base_cost'])
+                transportation = float(data['transportation'])
+                carriage = float(data['carriage'])
                 profit_margin = float(data['profit_margin'])
             except (ValueError, TypeError):
                 return jsonify({'message': 'Invalid numeric values'}), 400
 
-            if quantity <= 0 or total_cost <= 0:
+            if quantity <= 0 or base_cost <= 0:
                 return jsonify({'message': 'Quantity and cost must be positive'}), 400
+
+            # Calculate total cost and unit price
+            total_cost = base_cost + transportation + carriage
+            cost_per_unit = total_cost / quantity
+            selling_price = round_up_to_half(cost_per_unit * (1 + (profit_margin / 100)))
 
             # Find or create product
             product = Product.query.filter_by(
@@ -426,9 +445,6 @@ def record_payment():
             ).first()
 
             if not product:
-                cost_per_unit = total_cost / quantity
-                selling_price = cost_per_unit * (1 + (profit_margin / 100))
-                
                 product = Product(
                     name=data['product_name'],
                     quantity=quantity,
@@ -438,22 +454,37 @@ def record_payment():
                 )
                 db.session.add(product)
             else:
-                # Update existing product
+                # Update existing product using weighted average
                 total_quantity = product.quantity + quantity
                 product.cost_price = (
                     (product.cost_price * product.quantity) + 
-                    (total_cost)
+                    cost_per_unit * quantity
                 ) / total_quantity
                 product.quantity = total_quantity
                 product.selling_price = product.cost_price * (1 + (profit_margin / 100))
 
-        # Create payment record (for both product and non-product payments)
+        # Create payment record
         payment = Payment(
             payment_type=data['payment_type'],
-            amount=data.get('amount', total_cost if data['payment_type'] == 'product' else 0),
+            amount=data.get('amount', total_cost if data['payment_type'] == 'product' else float(data['amount'])),
             description=data.get('description', ''),
-            user_id=current_user.id
+            user_id=current_user.id,
+            date=datetime.utcnow()
         )
+
+        # Add product-specific fields if this is a product payment
+        if data['payment_type'] == 'product':
+            payment.product_id = product.id
+            payment.product_name = data['product_name']
+            payment.quantity = quantity
+            payment.base_cost = base_cost
+            payment.transportation = transportation
+            payment.carriage = carriage
+            payment.total_cost = total_cost
+            payment.cost_per_unit = cost_per_unit
+            payment.profit_margin = profit_margin
+            payment.selling_price = selling_price
+
         db.session.add(payment)
         db.session.commit()
 
@@ -462,20 +493,41 @@ def record_payment():
             'date': payment.date.strftime('%Y-%m-%d'),
             'payment_type': payment.payment_type,
             'description': payment.description,
-            'amount': payment.amount
+            'amount': payment.amount,
+            'selling_price': selling_price if data['payment_type'] == 'product' else None
         }
         
-        # Only include product_id if this was a product payment
         if product:
-            response_data['product_id'] = product.id
-            response_data['selling_price'] = product.selling_price
+            response_data.update({
+                'product_id': product.id,
+                'product_name': product.name,
+                'quantity': product.quantity,
+                'unit_cost': cost_per_unit,
+                'selling_price': selling_price
+            })
 
         return jsonify(response_data), 201
         
     except Exception as e:
         db.session.rollback()
         return jsonify({'message': f'Server error: {str(e)}'}), 500
-    
+
+@app.route('/api/payments/<int:payment_id>', methods=['DELETE'])
+@login_required
+def delete_payment(payment_id):
+    payment = Payment.query.get_or_404(payment_id)
+    if payment.user_id != current_user.id:
+        return jsonify({'message': 'Unauthorized'}), 403
+
+    try:
+        db.session.delete(payment)
+        db.session.commit()
+        return jsonify({'message': 'Deleted successfully'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': f'Server error: {str(e)}'}), 500
+
+
  # Initialize database
 with app.app_context():
     db.create_all()
