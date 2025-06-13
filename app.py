@@ -526,6 +526,43 @@ def delete_payment(payment_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'message': f'Server error: {str(e)}'}), 500
+    
+@app.route('/api/payments/restore', methods=['POST'])
+@login_required
+def restore_payment():
+    data = request.get_json()
+    
+    try:
+        payment = Payment(
+            payment_type=data['payment_type'],
+            amount=data['amount'],
+            description=data.get('description', ''),
+            user_id=current_user.id,
+            date=datetime.strptime(data['date'], '%Y-%m-%d'),
+            product_name=data.get('product_name'),
+            quantity=data.get('quantity'),
+            base_cost=data.get('base_cost'),
+            transportation=data.get('transportation'),
+            carriage=data.get('carriage'),
+            total_cost=data.get('total_cost'),
+            cost_per_unit=data.get('cost_per_unit'),
+            profit_margin=data.get('profit_margin'),
+            selling_price=data.get('selling_price'),
+            product_id=data.get('product_id')
+        )
+        db.session.add(payment)
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Payment restored',
+            'payment_id': payment.id,
+            'date': payment.date.strftime('%Y-%m-%d')
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': f'Error restoring payment: {str(e)}'}), 500
+
 
 
  # Initialize database
