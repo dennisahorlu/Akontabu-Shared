@@ -562,6 +562,75 @@ def restore_payment():
     except Exception as e:
         db.session.rollback()
         return jsonify({'message': f'Error restoring payment: {str(e)}'}), 500
+    
+@app.route('/api/payments/<int:id>', methods=['PUT'])
+@login_required
+def update_payment(id):
+    payment = Payment.query.get_or_404(id)
+
+    if payment.user_id != current_user.id:
+        return jsonify({'message': 'Unauthorized'}), 403
+
+    data = request.get_json()
+
+    # Update common fields
+    payment.payment_type = data['payment_type']
+    payment.amount = data.get('amount')
+    payment.description = data.get('description')
+
+    # If it's a product payment, update product details
+    if data['payment_type'] == 'product':
+        quantity = data.get('quantity', 1)
+        base_cost = data.get('base_cost', 0)
+        transportation = data.get('transportation', 0)
+        carriage = data.get('carriage', 0)
+        total_cost = base_cost + transportation + carriage
+        cost_per_unit = total_cost / quantity if quantity else 0
+        selling_price = data.get('calculated_price', 0)
+        amount = round(quantity * selling_price, 2)
+
+        payment.product_name = data['product_name']
+        payment.quantity = quantity
+        payment.base_cost = base_cost
+        payment.transportation = transportation
+        payment.carriage = carriage
+        payment.total_cost = total_cost
+        payment.cost_per_unit = cost_per_unit
+        payment.profit_margin = data.get('profit_margin', 0)
+        payment.selling_price = selling_price
+        payment.amount = amount
+
+
+    db.session.commit()
+
+    return jsonify({'message': 'Payment updated successfully'})
+
+@app.route('/api/payments/<int:id>', methods=['GET'])
+@login_required
+def get_payment(id):
+    payment = Payment.query.get_or_404(id)
+    
+    if payment.user_id != current_user.id:
+        return jsonify({'message': 'Unauthorized'}), 403
+
+    return jsonify({
+        'id': payment.id,
+        'payment_type': payment.payment_type,
+        'description': payment.description,
+        'amount': payment.amount,
+        'product_name': payment.product_name,
+        'quantity': payment.quantity,
+        'base_cost': payment.base_cost,
+        'transportation': payment.transportation,
+        'carriage': payment.carriage,
+        'total_cost': payment.total_cost,
+        'cost_per_unit': payment.cost_per_unit,
+        'profit_margin': payment.profit_margin,
+        'selling_price': payment.selling_price,
+        'date': payment.date.strftime('%Y-%m-%d'),
+        'product_id': payment.product_id
+    })
+
 
 
 

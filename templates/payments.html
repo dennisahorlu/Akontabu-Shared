@@ -94,13 +94,13 @@
           </thead>
           <tbody>
             {% for payment in payments %}
-            <tr>
+            <tr id="payment-row-{{ payment.id }}">
               <td>{{ payment.date.strftime('%Y-%m-%d') }}</td>
               <td>{{ payment.payment_type }}</td>
-              <td>{{ payment.description }}</td>
-              <td>{{ payment.product_name if payment.payment_type == 'product' else 'NA' }}</td>
-              <td>{{ payment.quantity if payment.payment_type == 'product' else 'NA' }}</td>
-              <td>{% if payment.payment_type == 'product' %}{{ payment.selling_price|currency }}{% endif %}</td>
+              <td>{{ payment.description or '-' }}</td>
+              <td>{{ payment.product_name if payment.payment_type == 'product' else '-' }}</td>
+              <td>{{ payment.quantity if payment.payment_type == 'product' else '-' }}</td>
+              <td>{{ payment.selling_price|currency if payment.payment_type == 'product' else '-' }}</td>
               <td>{{ payment.amount|currency }}</td>
               <td>
                 <button onclick="editPayment('{{ payment.id }}')" class="action-btn edit-btn">Edit</button>
@@ -115,210 +115,155 @@
   </div>
 
   <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const paymentTypeSelect = document.getElementById('payment_type');
-    const productFields = document.getElementById('product-fields');
-    const otherFields = document.getElementById('other-fields');
+document.addEventListener('DOMContentLoaded', function () {
+  const paymentTypeSelect = document.getElementById('payment_type');
+  const productFields = document.getElementById('product-fields');
+  const otherFields = document.getElementById('other-fields');
+  const spinner = document.createElement('div');
+  const toast = (msg, type = 'success') => Toastify({
+    text: msg,
+    duration: 3000,
+    position: "right",
+    gravity: "top",
+    style: { background: type === 'success' ? '#4CAF50' : '#f44336' }
+  }).showToast();
 
-    // paymentTypeSelect.addEventListener('change', function () {
-    //   const type = this.value;
-    //   if (type === 'product') {
-    //     productFields.style.display = 'block';
-    //     otherFields.style.display = 'none';
-    //   } else {
-    //     productFields.style.display = 'none';
-    //     otherFields.style.display = 'block';
-    //   }
-    // });
-
-    paymentTypeSelect.addEventListener('change', function () {
+  paymentTypeSelect.addEventListener('change', function () {
     const type = this.value;
     const productInputs = productFields.querySelectorAll('input');
     const otherInputs = otherFields.querySelectorAll('input');
 
     if (type === 'product') {
-        productFields.style.display = 'block';
-        otherFields.style.display = 'none';
-
-        productInputs.forEach(input => input.setAttribute('required', ''));
-        otherInputs.forEach(input => input.removeAttribute('required'));
+      productFields.style.display = 'block';
+      otherFields.style.display = 'none';
+      productInputs.forEach(input => input.required = true);
+      otherInputs.forEach(input => input.required = false);
     } else {
-        productFields.style.display = 'none';
-        otherFields.style.display = 'block';
-
-        productInputs.forEach(input => input.removeAttribute('required'));
-        otherInputs.forEach(input => input.setAttribute('required', ''));
+      productFields.style.display = 'none';
+      otherFields.style.display = 'block';
+      productInputs.forEach(input => input.required = false);
+      otherInputs.forEach(input => input.required = true);
     }
-    });
-
-
-    function calculateSellingPrice() {
-      const base = parseFloat(document.getElementById('base_cost').value) || 0;
-      const transport = parseFloat(document.getElementById('transportation').value) || 0;
-      const carriage = parseFloat(document.getElementById('carriage').value) || 0;
-      const qty = parseFloat(document.getElementById('product_quantity').value) || 1;
-      const margin = parseFloat(document.getElementById('profit_margin').value) || 0;
-
-      const totalCost = base + transport + carriage;
-      if (totalCost > 0 && qty > 0) {
-        const cpu = totalCost / qty;
-        const sp = Math.ceil(cpu * (1 + margin / 100) * 2) / 2;
-        document.getElementById('calculated_price').value = sp.toFixed(2);
-      }
-    }
-
-    ['base_cost', 'transportation', 'carriage', 'product_quantity', 'profit_margin'].forEach(id => {
-      document.getElementById(id).addEventListener('input', calculateSellingPrice);
-    });
-
-    document.getElementById('payment-form').addEventListener('submit', async function (e) {
-      e.preventDefault();
-      const type = paymentTypeSelect.value;
-      const formData = { payment_type: type };
-      const editId = document.getElementById('edit_payment_id').value;
-      const endpoint = editId ? `/api/payments/${editId}` : '/api/payments';
-      const method = editId ? 'PUT' : 'POST';
-
-      try {
-        if (type === 'product') {
-          Object.assign(formData, {
-            product_name: document.getElementById('product_name').value.trim(),
-            quantity: parseFloat(document.getElementById('product_quantity').value),
-            base_cost: parseFloat(document.getElementById('base_cost').value),
-            transportation: parseFloat(document.getElementById('transportation').value),
-            carriage: parseFloat(document.getElementById('carriage').value),
-            profit_margin: parseFloat(document.getElementById('profit_margin').value),
-            calculated_price: parseFloat(document.getElementById('calculated_price').value)
-          });
-        } else {
-          Object.assign(formData, {
-            amount: parseFloat(document.getElementById('amount').value),
-            description: document.getElementById('description').value.trim()
-          });
-        }
-
-        const response = await fetch(endpoint, {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData)
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.message || 'Payment save failed');
-        }
-
-        showToast('Payment recorded successfully ✅');
-        location.reload();
-      } catch (err) {
-        alert(`Error: ${err.message}`);
-        console.error(err);
-      }
-    });
-
-    let lastDeletedPayment = null;
-    const spinner = document.getElementById('spinner');
-    const undoBanner = document.getElementById('undo-banner');
-    const undoBtn = document.getElementById('undo-btn');
-
-    function showSpinner() {
-    spinner.style.display = 'block';
-    }
-    function hideSpinner() {
-    spinner.style.display = 'none';
-    }
-
-    window.deletePayment = function (id) {
-    const row = document.querySelector(`button[onclick="deletePayment('${id}')"]`).closest('tr');
-
-    if (!row) return alert('Row not found');
-
-    const payment = {
-        id,
-        payment_type: row.children[1].innerText,
-        description: row.children[2].innerText,
-        product_name: row.children[3].innerText !== 'NA' ? row.children[3].innerText : null,
-        quantity: row.children[4].innerText !== 'NA' ? parseFloat(row.children[4].innerText) : null,
-        selling_price: parseFloat(row.children[5].innerText.replace(/[₵,]/g, '')) || null,
-        amount: parseFloat(row.children[6].innerText.replace(/[₵,]/g, '')) || null,
-        date: row.children[0].innerText
-    };
-
-    lastDeletedPayment = payment;
-
-    showSpinner();
-    fetch(`/api/payments/${id}`, { method: 'DELETE' })
-        .then(response => {
-        hideSpinner();
-        if (response.ok) {
-            row.remove();
-            undoBanner.style.display = 'block';
-            setTimeout(() => {
-            lastDeletedPayment = null;
-            undoBanner.style.display = 'none';
-            }, 10000);
-        } else {
-           showToast('Failed to delete payment ❌', 'error');
-        }
-        })
-        .catch(err => {
-        hideSpinner();
-        alert('Error deleting payment');
-        console.error(err);
-        });
-    };
-
-    undoBtn.addEventListener('click', async () => {
-    if (!lastDeletedPayment) return;
-
-    showSpinner();
-    const res = await fetch('/api/payments/restore', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(lastDeletedPayment)
-    });
-
-    const restored = await res.json();
-    hideSpinner();
-    undoBanner.style.display = 'none';
-
-    if (res.ok) {
-        const tbody = document.querySelector('.payment-table tbody');
-        const newRow = document.createElement('tr');
-        newRow.innerHTML = `
-        <td>${restored.date}</td>
-        <td>${lastDeletedPayment.payment_type}</td>
-        <td>${lastDeletedPayment.description}</td>
-        <td>${lastDeletedPayment.product_name || 'NA'}</td>
-        <td>${lastDeletedPayment.quantity || 'NA'}</td>
-        <td>${lastDeletedPayment.selling_price ? '₵' + lastDeletedPayment.selling_price.toFixed(2) : ''}</td>
-        <td>₵${lastDeletedPayment.amount.toFixed(2)}</td>
-        <td>
-            <button onclick="editPayment('${restored.payment_id}')" class="action-btn edit-btn">Edit</button>
-            <button onclick="deletePayment('${restored.payment_id}')" class="action-btn delete-btn">Delete</button>
-        </td>
-        `;
-        tbody.prepend(newRow);
-        lastDeletedPayment = null;
-    } else {
-        showToast('⚠️ Error restoring payment', 'error');
-    }
-    });
-
-    function showToast(message, type = 'success') {
-        Toastify({
-            text: message,
-            duration: 3000,
-            gravity: "top", // top or bottom
-            position: "right", // left, center or right
-            backgroundColor: type === 'success' ? "#4CAF50" : "#f44336",
-            close: true,
-            stopOnFocus: true
-        }).showToast();
-    }
-
-
   });
-  </script>
+
+  ['base_cost', 'transportation', 'carriage', 'product_quantity', 'profit_margin'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', () => {
+      const base = +document.getElementById('base_cost').value || 0;
+      const transport = +document.getElementById('transportation').value || 0;
+      const carriage = +document.getElementById('carriage').value || 0;
+      const qty = +document.getElementById('product_quantity').value || 1;
+      const margin = +document.getElementById('profit_margin').value || 0;
+      const totalCost = base + transport + carriage;
+      const cpu = totalCost / qty;
+      const sp = Math.ceil(cpu * (1 + margin / 100) * 2) / 2;
+      document.getElementById('calculated_price').value = sp.toFixed(2);
+    });
+  });
+
+  document.getElementById('payment-form').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const editId = document.getElementById('edit_payment_id').value;
+    const endpoint = editId ? `/api/payments/${editId}` : '/api/payments';
+    const method = editId ? 'PUT' : 'POST';
+
+    const type = paymentTypeSelect.value;
+    const formData = { payment_type: type };
+    if (type === 'product') {
+      Object.assign(formData, {
+        product_name: document.getElementById('product_name').value,
+        quantity: +document.getElementById('product_quantity').value,
+        base_cost: +document.getElementById('base_cost').value,
+        transportation: +document.getElementById('transportation').value,
+        carriage: +document.getElementById('carriage').value,
+        profit_margin: +document.getElementById('profit_margin').value,
+        calculated_price: +document.getElementById('calculated_price').value
+      });
+      formData.amount = parseFloat((formData.quantity * formData.calculated_price).toFixed(2));
+    } else {
+      Object.assign(formData, {
+        amount: +document.getElementById('amount').value,
+        description: document.getElementById('description').value
+      });
+    }
+
+    try {
+      const response = await fetch(endpoint, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+
+      if (!response.ok) throw new Error((await response.text()).slice(0, 100));
+
+      toast(editId ? '✅ Payment updated' : '✅ Payment recorded');
+      this.reset();
+      productFields.style.display = 'none';
+      otherFields.style.display = 'none';
+      document.getElementById('edit_payment_id').value = '';
+      document.querySelector('.submit-btn').textContent = 'Record Payment';
+
+      if (editId) {
+        const row = document.getElementById(`payment-row-${editId}`);
+        if (row) {
+          row.innerHTML = `
+            <td>${new Date().toISOString().slice(0, 10)}</td>
+            <td>${formData.payment_type}</td>
+            <td>${formData.description || '-'}</td>
+            <td>${formData.product_name || '-'}</td>
+            <td>${formData.quantity || '-'}</td>
+            <td>${formData.calculated_price ? '₵' + formData.calculated_price.toFixed(2) : '-'}</td>
+            <td>₵${formData.amount.toFixed(2)}</td>
+            <td>
+              <button onclick="editPayment('${editId}')" class="action-btn edit-btn">Edit</button>
+              <button onclick="deletePayment('${editId}')" class="action-btn delete-btn">Delete</button>
+            </td>
+          `;
+          row.style.backgroundColor = '#e6ffe6';
+          setTimeout(() => (row.style.backgroundColor = ''), 2000);
+        }
+      }
+    } catch (err) {
+      toast('❌ ' + err.message, 'error');
+    }
+  });
+
+  window.editPayment = function (id) {
+    fetch(`/api/payments/${id}`)
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('payment_type').value = data.payment_type;
+        document.getElementById('payment_type').dispatchEvent(new Event('change'));
+        if (data.payment_type === 'product') {
+          document.getElementById('product_name').value = data.product_name;
+          document.getElementById('product_quantity').value = data.quantity;
+          document.getElementById('base_cost').value = data.base_cost;
+          document.getElementById('transportation').value = data.transportation;
+          document.getElementById('carriage').value = data.carriage;
+          document.getElementById('profit_margin').value = data.profit_margin;
+          document.getElementById('calculated_price').value = data.selling_price;
+        } else {
+          document.getElementById('amount').value = data.amount;
+          document.getElementById('description').value = data.description;
+        }
+        document.getElementById('edit_payment_id').value = data.id;
+        document.querySelector('.submit-btn').textContent = 'Update Payment';
+      })
+      .catch(err => toast('❌ Edit failed: ' + err.message, 'error'));
+  };
+
+  window.deletePayment = function (id) {
+    if (!confirm('Delete this payment?')) return;
+    fetch(`/api/payments/${id}`, { method: 'DELETE' })
+      .then(res => {
+        if (!res.ok) throw new Error('Delete failed');
+        document.getElementById(`payment-row-${id}`).remove();
+        toast('✅ Payment deleted');
+      })
+      .catch(err => toast('❌ ' + err.message, 'error'));
+  };
+});
+</script>
+
 </body>
 </html>
