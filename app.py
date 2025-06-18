@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, g, flash
 import os
-from datetime import datetime
+from datetime import datetime, date
 from sqlalchemy import event, Engine
 from sqlalchemy.orm import joinedload
 from flask_login import current_user, login_required, login_user
@@ -125,132 +125,56 @@ def dashboard():
                          total_sales=total_sales,
                          inventory=inventory)
 
-# @app.route('/inventory')
-# @login_required
-# def inventory():
-#     products = Product.query.filter_by(user_id=current_user.id).all()
-#     return render_template('inventory.html', products=products)
-
 @app.route('/inventory')
 @login_required
 def inventory():
-    products = db.session.query(Product).options(joinedload(Product.payments)).all()
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
 
-    # Add selling price from the most recent payment (or whatever logic fits)
-    for product in products:
-     if product.price is None:
-        product.price = 0
+    products_query = Product.query.filter_by(user_id=current_user.id)
+    pagination = products_query.paginate(page=page, per_page=per_page, error_out=False)
 
-    for product in products:
-        if product.payments:
-            latest_payment = sorted(product.payments, key=lambda p: p.date, reverse=True)[0]
-            product.selling_price = latest_payment.selling_price
-        else:
-            product.selling_price = 0
+    return render_template(
+        'inventory.html',
+        products=pagination.items,
+        pagination=pagination
+    )
 
-    return render_template('inventory.html', products=products)
+def update_inventory_from_payment(payment):
+    normalized_name = payment.product_name.strip().title()  # 🧠 Normalize the product name
 
+    # Update the payment object too (if not already set)
+    payment.product_name = normalized_name
 
+    product = Product.query.filter_by(name=normalized_name, user_id=payment.user_id).first()
 
-'''@app.route('/inventory/new', methods=['POST'])
-@login_required
-def add_product():
-    data = request.get_json()
-    try:
+    if product:
+        # 🧮 Weighted average cost
+        old_qty = product.quantity
+        old_total_cost = old_qty * product.cost_price
+        new_total_cost = payment.quantity * payment.cost_per_unit
+        new_qty = old_qty + payment.quantity
+
+        if new_qty > 0:
+            average_cost = (old_total_cost + new_total_cost) / new_qty
+            product.cost_price = round(average_cost, 2)
+
+        product.quantity = new_qty
+        product.selling_price = payment.selling_price
+        product.profit_margin = payment.profit_margin
+
+    else:
         product = Product(
-            name=data['name'],
-            quantity=data['quantity'],
-            cost_price=data['cost_price'],
-            selling_price=data['selling_price'],
-            profit_margin=((float(data['selling_price']) - float(data['cost_price'])) / float(data['cost_price'])) * 100,
-            min_stock_level=data.get('min_stock', 10),
-            user_id=current_user.id
+            name=normalized_name,
+            quantity=payment.quantity,
+            cost_price=payment.cost_per_unit,
+            selling_price=payment.selling_price,
+            profit_margin=payment.profit_margin,
+            user_id=payment.user_id
         )
         db.session.add(product)
-        db.session.commit()
-        return jsonify({'message': 'Product added successfully'}), 201
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'message': str(e)}), 500 -->'''
 
-# @app.route('/inventory/new', methods=['POST'])
-# @login_required
-# def add_product():
-#     data = request.get_json()
-#     try:
-#         product = Product(
-#             name=data['name'],
-#             quantity=data['quantity'],
-#             cost_price=data.get('cost_price', 0),
-#             selling_price=data.get('price', 0),
-#             user_id=current_user.id
-#         )
-#         db.session.add(product)
-#         db.session.commit()
-#         return jsonify({
-#             'message': 'Product added successfully',
-#             'product': {
-#                 'id': product.id,
-#                 'name': product.name,
-#                 'quantity': product.quantity,
-#                 'price': product.selling_price
-#             }
-#         }), 201
-#     except Exception as e:
-#         db.session.rollback()
-#         return jsonify({'message': str(e)}), 500
-
-
-@app.route('/inventory/new', methods=['POST'])
-@login_required
-def add_product():
-    data = request.get_json()
-    
-    if not data:
-        return jsonify({'message': 'No JSON data received'}), 400
-
-    try:
-        name = data.get('name')
-        quantity = data.get('quantity')
-        price = data.get('price')
-        cost_price = data.get('cost_price', 0)
-
-        # Basic validation
-        if not name or quantity is None or price is None:
-            return jsonify({'message': 'Missing required fields'}), 400
-
-        # Convert to correct types
-        try:
-            quantity = int(quantity)
-            price = float(price)
-            cost_price = float(cost_price)
-        except ValueError:
-            return jsonify({'message': 'Invalid number for quantity or price'}), 400
-
-        product = Product(
-            name=name,
-            quantity=quantity,
-            cost_price=cost_price,
-            selling_price=price,
-            user_id=current_user.id
-        )
-        db.session.add(product)
-        db.session.commit()
-
-        return jsonify({
-            'message': 'Product added successfully',
-            'product': {
-                'id': product.id,
-                'name': product.name,
-                'quantity': product.quantity,
-                'price': product.selling_price
-            }
-        }), 201
-
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'message': f'Internal Server Error: {str(e)}'}), 500
-
+    db.session.commit()
 
 @app.route('/sales', methods=['GET', 'POST'])
 def sales():
@@ -310,12 +234,28 @@ def sales():
     return render_template('sales.html', sales=sales, products=products)
 
 
-# Placeholder routes for other pages
 @app.route('/payments')
-@login_required  # Use this instead of manual session checking
+@login_required
 def payments():
-    payments = Payment.query.filter_by(user_id=current_user.id).order_by(Payment.date.desc()).all()
-    return render_template('payments.html', payments=payments)
+    query = Payment.query.filter_by(user_id=current_user.id)
+
+    # Optional filters
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+
+    if start_date:
+        query = query.filter(Payment.date >= datetime.strptime(start_date, "%Y-%m-%d"))
+    if end_date:
+        query = query.filter(Payment.date <= datetime.strptime(end_date, "%Y-%m-%d"))
+
+    # Default: show only 3 recent payments unless filtered
+    if not start_date and not end_date:
+        payments = query.order_by(Payment.date.desc()).limit(3).all()
+    else:
+        payments = query.order_by(Payment.date.desc()).all()
+
+    return render_template('payments.html', payments=payments, current_date=date.today().strftime('%Y-%m-%d'))
+
 
 @app.route('/reports')
 def reports():
@@ -333,25 +273,6 @@ def settings():
 def logout():
     session.pop('user_id', None)
     return redirect(url_for('index'))
-
-@app.route('/inventory/<int:product_id>/delete', methods=['POST'])
-def delete_product(product_id):
-    if 'user_id' not in session:
-        return jsonify({'message': 'Unauthorized'}), 401
-        
-    try:
-        product = Product.query.get(product_id)
-        
-        if not product:
-            return jsonify({'message': 'Product not found'}), 404
-            
-        db.session.delete(product)
-        db.session.commit()
-        
-        return jsonify({'message': 'Product deleted successfully'}), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'message': 'An error occurred'}), 500
 
 @app.route('/record-sale', methods=['POST'])
 def record_sale():
@@ -526,6 +447,16 @@ def delete_payment(payment_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'message': f'Server error: {str(e)}'}), 500
+    
+    if payment.payment_type == 'product':
+        product = Product.query.filter_by(name=payment.product_name, user_id=payment.user_id).first()
+        if product:
+            product.quantity -= payment.quantity
+            if product.quantity <= 0:
+                db.session.delete(product)
+            else:
+                db.session.add(product)
+
     
 @app.route('/api/payments/restore', methods=['POST'])
 @login_required
