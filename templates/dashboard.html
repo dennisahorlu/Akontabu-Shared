@@ -102,11 +102,11 @@
         <div class="metrics-grid">
             <div class="metric-card">
                 <div class="metric-title">Total Sales</div>
-                <div class="metric-value">${{ total_sales }}</div>
+                <div class="metric-value">{{ total_sales |currency }}</div>
             </div>
             <div class="metric-card">
                 <div class="metric-title">Total Expenditure</div>
-                <div class="metric-value">${{ total_expenditure }}</div>
+                <div class="metric-value">{{ total_expenditure |currency}}</div>
             </div>
         </div>
 
@@ -124,7 +124,7 @@
                 <tr>
                     <td>{{ product.name }}</td>
                     <td>{{ product.quantity }}</td>
-                    <td>${{ product.value }}</td>
+                    <td>{{ product.value |currency}}</td>
                 </tr>
                 {% endfor %}
             </tbody>

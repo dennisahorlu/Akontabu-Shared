@@ -7,6 +7,8 @@ from flask_login import current_user, login_required, login_user
 from extensions import db, login_manager
 from models import User, Product, Sale, Payment
 import math
+from sqlalchemy import func
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
@@ -115,15 +117,44 @@ def login():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    # Calculate totals
-    total_sales = db.session.query(db.func.sum(Sale.quantity * Sale.price))\
-        .filter(Sale.user_id == current_user.id).scalar() or 0
-    
-    inventory = Product.query.all()
-    
+    product_costs = db.session.query(
+        func.sum(Payment.total_cost)
+    ).filter(Payment.payment_type == 'product').scalar() or 0
+
+    other_costs = db.session.query(
+        func.sum(Payment.amount)
+    ).filter(Payment.payment_type != 'product').scalar() or 0
+
+    total_sales = db.session.query(
+        func.sum(Sale.quantity * Sale.price)
+    ).filter(Sale.user_id == current_user.id).scalar() or 0
+
+    inventory_value = db.session.query(
+        func.sum(Product.quantity * Product.selling_price)
+    ).filter(Product.user_id == current_user.id).scalar() or 0
+
+    # Build inventory list for display in table
+    inventory = []
+    products = Product.query.filter_by(user_id=current_user.id).all()
+    for p in products:
+        inventory.append({
+            'name': p.name,
+            'quantity': p.quantity,
+            'value': round((p.quantity or 0) * (p.selling_price or 0), 2)
+        })
+
+    total_expenditure = product_costs + other_costs
+
     return render_template('dashboard.html',
-                         total_sales=total_sales,
-                         inventory=inventory)
+        total_sales=round(total_sales, 2),
+        total_expenditure=round(total_expenditure, 2),
+        product_costs=round(product_costs, 2),
+        other_costs=round(other_costs, 2),
+        inventory_value=round(inventory_value, 2),
+        inventory=inventory  # ✅ key part
+    )
+
+
 
 @app.route('/inventory')
 @login_required
@@ -290,39 +321,47 @@ def record_sale():
     
     return jsonify({"success": True})
 
-@app.route('/api/products/<int:product_id>/costs')
-@login_required
-def get_product_costs(product_id):
-    product = Product.query.filter_by(id=product_id, user_id=current_user.id).first_or_404()
-    costs = [{
-        'id': c.id,
-        'type': c.cost_type,
-        'amount': c.amount,
-        'description': c.description,
-        'date': c.date.strftime('%Y-%m-%d')
-    } for c in product.costs]
+# @app.route('/api/products/<int:product_id>/costs')
+# @login_required
+# def get_product_costs(product_id):
+#     product = Product.query.filter_by(id=product_id, user_id=current_user.id).first_or_404()
+#     costs = [{
+#         'id': c.id,
+#         'type': c.cost_type,
+#         'amount': c.amount,
+#         'description': c.description,
+#         'date': c.date.strftime('%Y-%m-%d')
+#     } for c in product.costs]
     
-    return jsonify({
-        'product': product.name,
-        'total_cost': sum(c.amount for c in product.costs),
-        'average_cost': product.cost_price,
-        'selling_price': product.selling_price,
-        'costs': costs
-    })
+#     return jsonify({
+#         'product': product.name,
+#         'total_cost': sum(c.amount for c in product.costs),
+#         'average_cost': product.cost_price,
+#         'selling_price': product.selling_price,
+#         'costs': costs
+#     })
 
-@app.route('/api/update_product_price', methods=['POST'])
-@login_required
-def update_product_price():
-    data = request.get_json()
-    product = Product.query.filter_by(id=data['product_id'], user_id=current_user.id).first_or_404()
+@app.route('/api/products/<int:product_id>')
+def get_product(product_id):
+    product = Product.query.get(product_id)
+    if product:
+        return jsonify({'id': product.id, 'name': product.name, 'selling_price': product.selling_price})
+    return jsonify({'error': 'Product not found'}), 404
+
+
+# @app.route('/api/update_product_price', methods=['POST'])
+# @login_required
+# def update_product_price():
+#     data = request.get_json()
+#     product = Product.query.filter_by(id=data['product_id'], user_id=current_user.id).first_or_404()
     
-    # Update product details
-    product.cost_price = data['cost_price']
-    product.price = data['selling_price']
-    product.quantity += int(data['quantity'])
+#     # Update product details
+#     product.cost_price = data['cost_price']
+#     product.price = data['selling_price']
+#     product.quantity += int(data['quantity'])
     
-    db.session.commit()
-    return jsonify({'success': True})
+#     db.session.commit()
+#     return jsonify({'success': True})
 
 @app.route('/api/payments', methods=['POST'])
 @login_required
@@ -448,14 +487,14 @@ def delete_payment(payment_id):
         db.session.rollback()
         return jsonify({'message': f'Server error: {str(e)}'}), 500
     
-    if payment.payment_type == 'product':
-        product = Product.query.filter_by(name=payment.product_name, user_id=payment.user_id).first()
-        if product:
-            product.quantity -= payment.quantity
-            if product.quantity <= 0:
-                db.session.delete(product)
-            else:
-                db.session.add(product)
+        if payment.payment_type == 'product':
+            product = Product.query.filter_by(name=payment.product_name, user_id=payment.user_id).first()
+            if product:
+                product.quantity -= payment.quantity
+                if product.quantity <= 0:
+                    db.session.delete(product)
+                else:
+                    db.session.add(product)
 
     
 @app.route('/api/payments/restore', methods=['POST'])

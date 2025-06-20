@@ -29,7 +29,17 @@ class Payment(db.Model):
     selling_price = db.Column(db.Float)
    # product_id = db.Column(db.Integer, db.ForeignKey('products.id'))
 
-    
+# class OtherPayment(db.Model):
+#     __tablename__ = 'other_payments'
+#     id = db.Column(db.Integer, primary_key=True)
+#     category = db.Column(db.String(100), nullable=False)  # e.g. Rent, Carriage, Utilities
+#     amount = db.Column(db.Float, nullable=False)
+#     description = db.Column(db.String(255))
+#     date = db.Column(db.DateTime, default=datetime.utcnow)
+#     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+
+#     user = db.relationship('User', backref='other_payments')
+
     def calculate_selling_price(self):
         def round_up_to_nearest_half(value):
             return math.ceil(value * 2) / 2

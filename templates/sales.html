@@ -181,7 +181,7 @@
                             <td>{{ sale.date.strftime('%Y-%m-%d') }}</td>
                             <td>{{ sale.product.name }}</td>
                             <td>{{ sale.quantity }}</td>
-                            <td>${{ sale.price }}</td>
+                            <td>${{ sale.price |currency }}</td>
                             <td>{{ sale.total_amount|currency }}</td>
                             <td>{{ sale.customer or 'N/A' }}</td>
                         </tr>
@@ -196,48 +196,47 @@
     </div>
 
     <script>
-        document.getElementById('new-sale-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-    
-            // Get form data
-            const productSelect = document.getElementById('product');
-            const formData = {
-                product_id: productSelect.value,
-                quantity: document.getElementById('quantity').value,
-                price: document.getElementById('price').value,
-                customer: document.getElementById('customer').value,
-                description: document.getElementById('description').value
-            };
-        document.getElementById('product').addEventListener('change', async function() {
+        // Handle product selection: fetch selling price
+        document.getElementById('product').addEventListener('change', async function () {
             const productId = this.value;
             if (!productId) return;
-    
+
             try {
                 const response = await fetch(`/api/products/${productId}`);
                 const product = await response.json();
                 document.getElementById('price').value = product.selling_price;
             } catch (error) {
                 console.error('Error fetching product price:', error);
+                alert('Failed to fetch product price.');
             }
-        });    
-    
-            // Validate product selection
+        });
+
+        // Handle form submission
+        document.getElementById('new-sale-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = {
+                product_id: document.getElementById('product').value,
+                quantity: document.getElementById('quantity').value,
+                price: document.getElementById('price').value,  // still required for submission
+                customer: document.getElementById('customer').value,
+                description: document.getElementById('description').value
+            };
+
             if (!formData.product_id) {
                 alert('Please select a product');
                 return;
             }
-    
+
             try {
                 const response = await fetch('/sales', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
                 });
-    
+
                 const data = await response.json();
-    
+
                 if (response.ok) {
                     alert('Sale recorded successfully!');
                     document.getElementById('new-sale-form').reset();
@@ -250,22 +249,23 @@
                 alert('An error occurred. Please try again.');
             }
         });
-    
+
         function filterSales() {
             const startDate = document.getElementById('start-date').value;
             const endDate = document.getElementById('end-date').value;
-    
+
             if (!startDate || !endDate) {
                 alert('Please select both start and end dates.');
                 return;
             }
-    
+
             const url = new URL(window.location.href);
             url.searchParams.set('start', startDate);
             url.searchParams.set('end', endDate);
             window.location.href = url.toString();
         }
     </script>
+
     
 </body>
 </html> 
