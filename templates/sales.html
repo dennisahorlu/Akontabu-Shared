@@ -181,7 +181,7 @@
                             <td>{{ sale.date.strftime('%Y-%m-%d') }}</td>
                             <td>{{ sale.product.name }}</td>
                             <td>{{ sale.quantity }}</td>
-                            <td>${{ sale.price |currency }}</td>
+                            <td>{{ sale.price |currency }}</td>
                             <td>{{ sale.total_amount|currency }}</td>
                             <td>{{ sale.customer or 'N/A' }}</td>
                         </tr>

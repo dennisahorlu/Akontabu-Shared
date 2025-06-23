@@ -26,6 +26,7 @@
   <!-- ✅ Toastify CDN -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
   <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+</head>
 <!-- Spinner + Undo Banner -->
   <div id="spinner" style="display: none; position: fixed; top: 20px; right: 20px; background: #fff; padding: 10px 20px; border-radius: 5px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); z-index: 999;">
     ⏳ Processing...
@@ -34,8 +35,6 @@
   <div id="undo-banner" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #323232; color: #fff; padding: 10px 20px; border-radius: 5px; z-index: 999;">
     Payment deleted. <button id="undo-btn" style="background: none; border: none; color: #4CAF50; font-weight: bold; cursor: pointer;">Undo</button>
   </div>
-</head>
-
 <body>
   <div class="payment-container">
     <div class="nav-bar">
@@ -104,21 +103,27 @@
             </tr>
           </thead>
           <tbody>
-            {% for payment in payments %}
-            <tr id="payment-row-{{ payment.id }}">
-              <td>{{ payment.date.strftime('%Y-%m-%d') }}</td>
-              <td>{{ payment.payment_type }}</td>
-              <td>{{ payment.description or '-' }}</td>
-              <td>{{ payment.product_name if payment.payment_type == 'product' else '-' }}</td>
-              <td>{{ payment.quantity if payment.payment_type == 'product' else '-' }}</td>
-              <td>{{ payment.selling_price|currency if payment.payment_type == 'product' else '-' }}</td>
-              <td>{{ payment.amount|currency }}</td>
-              <td>
-                <button onclick="editPayment('{{ payment.id }}')" class="action-btn edit-btn">Edit</button>
-                <button onclick="deletePayment('{{ payment.id }}')" class="action-btn delete-btn">Delete</button>
-              </td>
-            </tr>
-            {% endfor %}
+            {% if payments %}
+              {% for payment in payments %}
+              <tr id="payment-row-{{ payment.id }}">
+                <td>{{ payment.date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ payment.payment_type }}</td>
+                <td>{{ payment.description or '-' }}</td>
+                <td>{{ payment.product_name if payment.payment_type == 'product' else '-' }}</td>
+                <td>{{ payment.quantity if payment.payment_type == 'product' else '-' }}</td>
+                <td>{{ payment.selling_price|currency if payment.payment_type == 'product' else '-' }}</td>
+                <td>{{ payment.amount|currency }}</td>
+                <td>
+                  <button onclick="editPayment('{{ payment.id }}')" class="action-btn edit-btn">Edit</button>
+                  <button onclick="deletePayment('{{ payment.id }}')" class="action-btn delete-btn">Delete</button>
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="8" style="text-align: center; color: #888;">No records available for the selected range.</td>
+              </tr>
+            {% endif %}  
           </tbody>
         </table>
       </div>
@@ -277,6 +282,8 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('reset-btn').addEventListener('click', function () {
     window.location.href = "{{ url_for('payments') }}";
   });
+    
+  
 
 });
 </script>

@@ -34,6 +34,12 @@
         .nav-link:hover {
             background: #f0f0f0;
         }
+        .tabs { display: flex; margin-bottom: 20px; gap: 10px; }
+        .tab { padding: 10px 15px; background: #eee; cursor: pointer; border-radius: 5px; }
+        .tab.active { background: #4CAF50; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .export-buttons { margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -49,8 +55,85 @@
             </div>
         </div>
         
-        <h1>Business Reports</h1>
-        <p>This section will display various business reports and analytics.</p>
+        <h1>Reports</h1>
+        <form method="GET" action="{{ url_for('reports') }}" style="margin-bottom: 20px;">
+            <label for="start">From:</label>
+            <input type="date" name="start" id="start" value="{{ start or '' }}" required>
+
+            <label for="end">To:</label>
+            <input type="date" name="end" id="end" value="{{ end or '' }}" required>
+
+            <button type="submit">🔍 Filter</button>
+            {% if start and end %}
+                <a href="{{ url_for('reports') }}">🔄 Clear Filter</a>
+            {% endif %}
+        </form>
+
     </div>
+    <div class="tabs">
+        <div class="tab active" data-tab="profit">Profit</div>
+        <div class="tab" data-tab="inventory">Inventory</div>
+        <div class="tab" data-tab="sales">Sales</div>
+        <div class="tab" data-tab="payments">Payments</div>
+    </div>
+
+    <div class="export-buttons">
+        <a id="excel-btn" href="/export/profit/excel">📥 Excel</a> |
+        <a id="pdf-btn" href="/export/profit/pdf">📄 PDF</a>
+    </div>
+
+    <div id="profit" class="tab-content active">
+        <h3>Profit Summary</h3>
+        <p><strong>Total Revenue:</strong> ₵{{ total_revenue|round(2) }}</p>
+        <p><strong>Total Payments:</strong> ₵{{ total_payments|round(2) }}</p>
+        <p><strong>Net Profit:</strong> ₵{{ profit|round(2) }}</p>
+    </div>
+
+    <div id="inventory" class="tab-content">
+        {% include 'reports/partials/inventory.html' %}
+    </div>
+    <div id="sales" class="tab-content">
+        {% include 'reports/partials/sales.html' %}
+    </div>
+    <div id="payments" class="tab-content">
+        {% include 'reports/partials/payments.html' %}
+    </div>
+
+<script>
+    const tabs = document.querySelectorAll('.tab');
+    const contents = document.querySelectorAll('.tab-content');
+    const excelBtn = document.getElementById('excel-btn');
+    const pdfBtn = document.getElementById('pdf-btn');
+    const startInput = document.getElementById('start');
+    const endInput = document.getElementById('end');
+
+    function updateExportLinks(type) {
+        const start = startInput?.value || '';
+        const end = endInput?.value || '';
+        const params = start && end ? `?start=${start}&end=${end}` : '';
+        excelBtn.href = `/export/${type}/excel${params}`;
+        pdfBtn.href = `/export/${type}/pdf${params}`;
+    }
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            contents.forEach(c => c.classList.remove('active'));
+
+            tab.classList.add('active');
+            document.getElementById(tab.dataset.tab).classList.add('active');
+
+            updateExportLinks(tab.dataset.tab);
+        });
+    });
+
+    document.querySelector('form').addEventListener('submit', (e) => {
+        setTimeout(() => {
+            const activeTab = document.querySelector('.tab.active').dataset.tab;
+            updateExportLinks(activeTab);
+        }, 100);
+    });
+</script>
+
 </body>
 </html>

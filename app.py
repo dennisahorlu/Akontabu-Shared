@@ -8,6 +8,12 @@ from extensions import db, login_manager
 from models import User, Product, Sale, Payment
 import math
 from sqlalchemy import func
+from flask import send_file, make_response
+from io import BytesIO
+import pandas as pd
+from weasyprint import HTML
+from jinja2 import Environment, FileSystemLoader
+import os
 
 
 app = Flask(__name__)
@@ -47,16 +53,6 @@ def load_user():
 def load_user(user_id):
     return User.query.get(int(user_id))  # assuming you're using SQLAlchemy and User has an id
 
-
-# Custom Jinja filter for Ghana Cedis formatting
-# @app.template_filter('ghs')
-# def format_ghs(value):
-#     if value is None:
-#         return "GHS 0.00"
-#     try:
-#         return "GHS {:,.2f}".format(float(value))
-#     except (ValueError, TypeError):
-#         return "GHS 0.00"
 
 @app.template_filter('currency')
 def currency_format(value):
@@ -289,10 +285,140 @@ def payments():
 
 
 @app.route('/reports')
+@login_required
 def reports():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    return render_template('reports.html')
+    start = request.args.get('start')
+    end = request.args.get('end')
+
+    # Base queries
+    payment_query = Payment.query.filter_by(user_id=current_user.id)
+    sale_query = Sale.query.filter_by(user_id=current_user.id)
+    inventory_query = Product.query.filter_by(user_id=current_user.id)
+
+    if start and end:
+        try:
+            start_date = datetime.strptime(start, '%Y-%m-%d')
+            end_date = datetime.strptime(end, '%Y-%m-%d')
+            payment_query = payment_query.filter(Payment.date.between(start_date, end_date))
+            sale_query = sale_query.filter(Sale.date.between(start_date, end_date))
+        except ValueError:
+            flash("Invalid date range")
+
+    # Data
+    payments = payment_query.all()
+    sales = sale_query.all()
+    inventory = inventory_query.all()
+
+    # Summaries
+    total_revenue = sum(s.price * s.quantity for s in sales)
+    total_payments = sum(p.amount for p in payments)
+    profit = total_revenue - total_payments
+
+    return render_template(
+        'reports.html',
+        payments=payments,
+        sales=sales,
+        inventory=inventory,
+        total_revenue=total_revenue,
+        total_payments=total_payments,
+        profit=profit,
+        start=start,
+        end=end
+    )
+
+@app.route('/export/<report_type>/excel')
+@login_required
+def export_excel(report_type):
+    start = request.args.get('start')
+    end = request.args.get('end')
+
+    def date_filter(query, model):
+        if start and end:
+            try:
+                start_date = datetime.strptime(start, '%Y-%m-%d')
+                end_date = datetime.strptime(end, '%Y-%m-%d')
+                return query.filter(model.date.between(start_date, end_date))
+            except ValueError:
+                pass
+        return query
+
+    if report_type == 'sales':
+        query = Sale.query.filter_by(user_id=current_user.id)
+        sales = date_filter(query, Sale).all()
+        rows = [{'Date': s.date.strftime('%Y-%m-%d'), 'Product': s.product.name, 'Quantity': s.quantity, 'Price': s.price, 'Total': s.quantity * s.price} for s in sales]
+
+    elif report_type == 'payments':
+        query = Payment.query.filter_by(user_id=current_user.id)
+        payments = date_filter(query, Payment).all()
+        rows = [{'Date': p.date.strftime('%Y-%m-%d'), 'Type': p.payment_type, 'Description': p.description, 'Amount': p.amount} for p in payments]
+
+    elif report_type == 'inventory':
+        products = Product.query.filter_by(user_id=current_user.id).all()
+        rows = [{'Product': p.name, 'Quantity': p.quantity, 'Cost Price': p.cost_price, 'Selling Price': p.selling_price} for p in products]
+
+    elif report_type == 'profit':
+        payments = date_filter(Payment.query.filter_by(user_id=current_user.id), Payment).all()
+        sales = date_filter(Sale.query.filter_by(user_id=current_user.id), Sale).all()
+        rows = [{
+            'Total Revenue': sum(s.price * s.quantity for s in sales),
+            'Total Payments': sum(p.amount for p in payments),
+            'Profit': sum(s.price * s.quantity for s in sales) - sum(p.amount for p in payments)
+        }]
+
+    else:
+        return "Invalid report type", 400
+
+    df = pd.DataFrame(rows)
+    output = BytesIO()
+    df.to_excel(output, index=False, engine='openpyxl')
+    output.seek(0)
+
+    return send_file(output, download_name=f'{report_type}_report.xlsx', as_attachment=True)
+
+
+@app.route('/export/<report_type>/pdf')
+@login_required
+def export_pdf(report_type):
+    start = request.args.get('start')
+    end = request.args.get('end')
+
+    def date_filter(query, model):
+        if start and end:
+            try:
+                start_date = datetime.strptime(start, '%Y-%m-%d')
+                end_date = datetime.strptime(end, '%Y-%m-%d')
+                return query.filter(model.date.between(start_date, end_date))
+            except ValueError:
+                pass
+        return query
+
+    sales = date_filter(Sale.query.filter_by(user_id=current_user.id), Sale).all()
+    payments = date_filter(Payment.query.filter_by(user_id=current_user.id), Payment).all()
+    inventory = Product.query.filter_by(user_id=current_user.id).all()
+
+    context = {
+        'sales': sales,
+        'payments': payments,
+        'inventory': inventory,
+    }
+
+    if report_type == 'profit':
+        context['total_revenue'] = sum(s.price * s.quantity for s in sales)
+        context['total_payments'] = sum(p.amount for p in payments)
+        context['profit'] = context['total_revenue'] - context['total_payments']
+
+    env = Environment(loader=FileSystemLoader('templates'))
+    template = env.get_template(f'reports/partials/{report_type}.html')
+    html_out = template.render(**context)
+    pdf = HTML(string=html_out).write_pdf()
+
+    response = make_response(pdf)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'attachment; filename={report_type}_report.pdf'
+    return response
+
+
+
 
 @app.route('/settings')
 def settings():
@@ -321,26 +447,6 @@ def record_sale():
     
     return jsonify({"success": True})
 
-# @app.route('/api/products/<int:product_id>/costs')
-# @login_required
-# def get_product_costs(product_id):
-#     product = Product.query.filter_by(id=product_id, user_id=current_user.id).first_or_404()
-#     costs = [{
-#         'id': c.id,
-#         'type': c.cost_type,
-#         'amount': c.amount,
-#         'description': c.description,
-#         'date': c.date.strftime('%Y-%m-%d')
-#     } for c in product.costs]
-    
-#     return jsonify({
-#         'product': product.name,
-#         'total_cost': sum(c.amount for c in product.costs),
-#         'average_cost': product.cost_price,
-#         'selling_price': product.selling_price,
-#         'costs': costs
-#     })
-
 @app.route('/api/products/<int:product_id>')
 def get_product(product_id):
     product = Product.query.get(product_id)
@@ -349,128 +455,77 @@ def get_product(product_id):
     return jsonify({'error': 'Product not found'}), 404
 
 
-# @app.route('/api/update_product_price', methods=['POST'])
-# @login_required
-# def update_product_price():
-#     data = request.get_json()
-#     product = Product.query.filter_by(id=data['product_id'], user_id=current_user.id).first_or_404()
-    
-#     # Update product details
-#     product.cost_price = data['cost_price']
-#     product.price = data['selling_price']
-#     product.quantity += int(data['quantity'])
-    
-#     db.session.commit()
-#     return jsonify({'success': True})
+from datetime import datetime, timezone
 
 @app.route('/api/payments', methods=['POST'])
 @login_required
 def record_payment():
     data = request.get_json()
-    
-    try:
-        product = None
-        
-        if data['payment_type'] == 'product':
-            # Validate all required product fields
-            required_fields = [
-                'product_name', 'quantity', 'base_cost',
-                'transportation', 'carriage', 'profit_margin', 'calculated_price'
-            ]
-            if not all(key in data for key in required_fields):
-                return jsonify({'message': 'Missing required product fields'}), 400
 
-            # Convert and validate numeric fields
-            try:
-                quantity = float(data['quantity'])
-                base_cost = float(data['base_cost'])
-                transportation = float(data['transportation'])
-                carriage = float(data['carriage'])
-                profit_margin = float(data['profit_margin'])
-            except (ValueError, TypeError):
-                return jsonify({'message': 'Invalid numeric values'}), 400
+    if not data or 'payment_type' not in data:
+        return jsonify({'message': 'Invalid data'}), 400
 
-            if quantity <= 0 or base_cost <= 0:
-                return jsonify({'message': 'Quantity and cost must be positive'}), 400
+    if data['payment_type'] == 'product':
+        try:
+            payment = Payment(
+                payment_type='product',
+                product_name=data['product_name'].strip().title(),
+                quantity=data['quantity'],
+                base_cost=data['base_cost'],
+                transportation=data['transportation'],
+                carriage=data['carriage'],
+                total_cost=data['base_cost'] + data['transportation'] + data['carriage'],
+                cost_per_unit=(data['base_cost'] + data['transportation'] + data['carriage']) / data['quantity'],
+                profit_margin=data['profit_margin'],
+                selling_price=data['calculated_price'],
+                amount=data['quantity'] * data['calculated_price'],
+                user_id=current_user.id,
+                date=datetime.now(timezone.utc)
+            )
+            db.session.add(payment)
 
-            # Calculate total cost and unit price
-            total_cost = base_cost + transportation + carriage
-            cost_per_unit = total_cost / quantity
-            selling_price = round_up_to_half(cost_per_unit * (1 + (profit_margin / 100)))
+            # Update or create product in inventory
+            normalized_name = payment.product_name
+            existing_product = Product.query.filter_by(name=normalized_name, user_id=current_user.id).first()
 
-            # Find or create product
-            product = Product.query.filter_by(
-                name=data['product_name'],
-                user_id=current_user.id
-            ).first()
-
-            if not product:
-                product = Product(
-                    name=data['product_name'],
-                    quantity=quantity,
-                    cost_price=cost_per_unit,
-                    selling_price=selling_price,
+            if existing_product:
+                existing_product.quantity += payment.quantity
+                existing_product.cost_price = payment.cost_per_unit  # Optional: depends on logic
+                existing_product.selling_price = payment.selling_price
+            else:
+                new_product = Product(
+                    name=normalized_name,
+                    quantity=payment.quantity,
+                    cost_price=payment.cost_per_unit,
+                    selling_price=payment.selling_price,
                     user_id=current_user.id
                 )
-                db.session.add(product)
-            else:
-                # Update existing product using weighted average
-                total_quantity = product.quantity + quantity
-                product.cost_price = (
-                    (product.cost_price * product.quantity) + 
-                    cost_per_unit * quantity
-                ) / total_quantity
-                product.quantity = total_quantity
-                product.selling_price = product.cost_price * (1 + (profit_margin / 100))
+                db.session.add(new_product)
 
-        # Create payment record
-        payment = Payment(
-            payment_type=data['payment_type'],
-            amount=data.get('amount', total_cost if data['payment_type'] == 'product' else float(data['amount'])),
-            description=data.get('description', ''),
-            user_id=current_user.id,
-            date=datetime.utcnow()
-        )
+            db.session.commit()
+            return jsonify({'message': 'Payment recorded successfully'}), 201
 
-        # Add product-specific fields if this is a product payment
-        if data['payment_type'] == 'product':
-            payment.product_id = product.id
-            payment.product_name = data['product_name']
-            payment.quantity = quantity
-            payment.base_cost = base_cost
-            payment.transportation = transportation
-            payment.carriage = carriage
-            payment.total_cost = total_cost
-            payment.cost_per_unit = cost_per_unit
-            payment.profit_margin = profit_margin
-            payment.selling_price = selling_price
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'message': f'Error: {str(e)}'}), 500
 
-        db.session.add(payment)
-        db.session.commit()
+    else:
+        try:
+            payment = Payment(
+                payment_type=data['payment_type'],
+                amount=data['amount'],
+                description=data['description'].strip().title(),
+                user_id=current_user.id,
+                date=datetime.now(timezone.utc)
+            )
+            db.session.add(payment)
+            db.session.commit()
+            return jsonify({'message': 'Payment recorded successfully'}), 201
 
-        # Prepare response
-        response_data = {
-            'date': payment.date.strftime('%Y-%m-%d'),
-            'payment_type': payment.payment_type,
-            'description': payment.description,
-            'amount': payment.amount,
-            'selling_price': selling_price if data['payment_type'] == 'product' else None
-        }
-        
-        if product:
-            response_data.update({
-                'product_id': product.id,
-                'product_name': product.name,
-                'quantity': product.quantity,
-                'unit_cost': cost_per_unit,
-                'selling_price': selling_price
-            })
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'message': f'Error: {str(e)}'}), 500
 
-        return jsonify(response_data), 201
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'message': f'Server error: {str(e)}'}), 500
 
 @app.route('/api/payments/<int:payment_id>', methods=['DELETE'])
 @login_required
@@ -487,14 +542,14 @@ def delete_payment(payment_id):
         db.session.rollback()
         return jsonify({'message': f'Server error: {str(e)}'}), 500
     
-        if payment.payment_type == 'product':
-            product = Product.query.filter_by(name=payment.product_name, user_id=payment.user_id).first()
-            if product:
-                product.quantity -= payment.quantity
-                if product.quantity <= 0:
-                    db.session.delete(product)
-                else:
-                    db.session.add(product)
+    if payment.payment_type == 'product':
+        product = Product.query.filter_by(name=payment.product_name, user_id=payment.user_id).first()
+        if product:
+            product.quantity -= payment.quantity
+            if product.quantity <= 0:
+                db.session.delete(product)
+            else:
+                db.session.add(product)
 
     
 @app.route('/api/payments/restore', methods=['POST'])

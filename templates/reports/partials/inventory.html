@@ -1,0 +1,14 @@
+<h3>Inventory</h3>
+<table>
+    <thead><tr><th>Product</th><th>Qty</th><th>Cost</th><th>Selling</th></tr></thead>
+    <tbody>
+        {% for p in inventory %}
+        <tr>
+            <td>{{ p.name }}</td>
+            <td>{{ p.quantity }}</td>
+            <td>₵{{ p.cost_price }}</td>
+            <td>₵{{ p.selling_price }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

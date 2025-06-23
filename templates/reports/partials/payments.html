@@ -1,0 +1,14 @@
+<h3>Payments</h3>
+<table>
+    <thead><tr><th>Date</th><th>Type</th><th>Description</th><th>Amount</th></tr></thead>
+    <tbody>
+        {% for p in payments %}
+        <tr>
+            <td>{{ p.date.strftime('%Y-%m-%d') }}</td>
+            <td>{{ p.payment_type }}</td>
+            <td>{{ p.description }}</td>
+            <td>₵{{ p.amount }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
