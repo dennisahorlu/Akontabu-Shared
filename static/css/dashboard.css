@@ -1,0 +1,138 @@
+        body {
+        font-family: 'Poppins', sans-serif;
+        background: #f9f9f9;
+        margin: 0;
+        padding: 0;
+        font-size: 14px;
+        }
+
+        .dashboard-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 10px;
+        box-sizing: border-box;
+        }
+
+        .nav-bar {
+        background: #fff;
+        padding: 10px;
+        border-radius: 8px;
+        box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+        margin-bottom: 10px;
+        }
+
+        .nav-links {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        }
+
+        .nav-link {
+        font-size: 13px;
+        text-decoration: none;
+        color: #333;
+        padding: 6px 12px;
+        border-radius: 4px;
+        transition: background 0.2s ease;
+        }
+
+        .nav-link:hover {
+        background: #f0f0f0;
+        }
+
+        .logout {
+        color: red;
+        }
+
+        .logo-text {
+        font-weight: bold;
+        font-size: 16px;
+        flex: 1;
+        }
+
+        .metrics-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 15px;
+        }
+
+        .metric-card {
+        background: #fff;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+        }
+
+        .metric-title {
+        color: #666;
+        font-size: 13px;
+        margin-bottom: 6px;
+        }
+
+        .metric-value {
+        font-size: 20px;
+        font-weight: 600;
+        color: #333;
+        }
+
+        .charts-container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        }
+
+        .chart-box {
+        flex: 1 1 48%;
+        max-width: 580px;
+        background: #fff;
+        padding: 10px;
+        border-radius: 8px;
+        box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+        box-sizing: border-box;
+        }
+
+        .chart-box h3 {
+        text-align: center;
+        font-size: 14px;
+        margin-bottom: 8px;
+        }
+
+        canvas {
+        width: 100% !important;
+        max-height: 180px !important;
+        height: auto;
+        }
+
+        .inventory-table {
+        width: 100%;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+        overflow: hidden;
+        font-size: 13px;
+        }
+
+        .inventory-table th,
+        .inventory-table td {
+        padding: 10px;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+        }
+
+        .inventory-table th {
+        background: #f8f8f8;
+        font-weight: 600;
+        }
+
+        .inventory-table tr:last-child td {
+        border-bottom: none;
+        }
+
+        .user_name {
+            font-weight: bold; 
+            font-size: 30px; 
+            text-align: center;
+        }

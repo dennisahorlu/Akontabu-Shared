@@ -4,29 +4,19 @@
 <head>
   <meta charset="UTF-8" />
   <title>Inventory - AKONTABU</title>
-  <style>
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
-    th { background-color: #f4f4f4; }
-    .submit-btn {
-      background: #4CAF50; color: white; padding: 8px 16px; border: none; border-radius: 5px; cursor: pointer;
-    }
-    .pagination a, .pagination strong {
-      margin: 0 5px; padding: 6px 10px; text-decoration: none; border-radius: 3px;
-    }
-    .pagination a { background: #f4f4f4; color: #333; }
-    .pagination strong { background: #4CAF50; color: white; }
-    .inventory-container { max-width: 1200px; margin: auto; padding: 20px; }
-    .nav-bar { background: #fff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
-    .nav-links { display: flex; justify-content: space-around; }
-    .nav-link { text-decoration: none; color: #333; padding: 10px 20px; border-radius: 5px; transition: background 0.3s ease; }
-    .nav-link:hover { background: #f0f0f0; }
-    .inventory-table { width: 100%; border-collapse: collapse; }
-    .inventory-table th, .payment-table td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
-  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="icon" href="{{url_for('static', filename='images/AKONTABU.jpg')}}" type="image/x-icon">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/inventory.css') }}">
 </head>
 <body>
-    <div class="inventory-container">
+  <span style="font-weight: bold; font-size: 30px; text-align: center;">
+                    {% if current_user.is_authenticated and current_user.business_name %}
+                                   Hi {{ current_user.business_name }},
+                    {% else %}
+                        AKONTABU
+                    {% endif %}
+  </span>
+  <div class="inventory-container">
     <div class="nav-bar">
       <div class="nav-links">
         <a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a>
@@ -35,57 +25,60 @@
         <a href="{{ url_for('payments') }}" class="nav-link">Payments</a>
         <a href="{{ url_for('reports') }}" class="nav-link">Reports</a>
         <a href="{{ url_for('settings') }}" class="nav-link">Settings</a>
+        <a href="{{ url_for('logout') }}" class="nav-link" style="color:red;">Logout</a>
       </div>
-  <h2>Inventory</h2>
-
-  <table class="inventory-table">
-    <thead>
-      <tr>
-        <th>Product Name</th>
-        <th>Quantity</th>
-        <th>Selling Price</th>
-        <th>Total Value</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% if products %}
-        {% for product in products %}
-          <tr>
-            <td>{{ product.name }}</td>
-            <td>{{ product.quantity }}</td>
-            <td>{{ product.selling_price | currency }}</td>
-            <td>{{ (product.quantity * product.selling_price) | currency }}</td>
-          </tr>
-        {% endfor %}
-      {% else %}
-        <tr><td colspan="5" style="text-align: center; color: #888;">No products available.</td></tr>
-      {% endif %}
-    </tbody>
-  </table>
-
-  {% if pagination %}
-    <div class="pagination" style="text-align: center; margin-top: 20px;">
-      {% if pagination.pages > 1 %}
-        {% if pagination.has_prev %}
-          <a href="{{ url_for('inventory', page=pagination.prev_num) }}">« Prev</a>
+    </div>
+  </div>    
+  <div class="Inventory-grid">
+    <h2>Inventory</h2>
+    <table class="inventory-table">
+      <thead>
+        <tr>
+          <th>Product Name</th>
+          <th>Quantity</th>
+          <th>Selling Price</th>
+          <th>Total Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if products %}
+          {% for product in products %}
+            <tr>
+              <td>{{ product.name }}</td>
+              <td>{{ product.quantity }}</td>
+              <td>{{ product.selling_price | currency }}</td>
+              <td>{{ (product.quantity * product.selling_price) | currency }}</td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="5" style="text-align: center; color: #888;">No products available.</td></tr>
         {% endif %}
+      </tbody>
+    </table>
 
-        {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=1) %}
-          {% if p %}
-            {% if p == pagination.page %}
-              <strong>{{ p }}</strong>
-            {% else %}
-              <a href="{{ url_for('inventory', page=p) }}">{{ p }}</a>
-            {% endif %}
-          {% else %}
-            …
+    {% if pagination %}
+      <div class="pagination" style="text-align: center; margin-top: 20px;">
+        {% if pagination.pages > 1 %}
+          {% if pagination.has_prev %}
+            <a href="{{ url_for('inventory', page=pagination.prev_num) }}">« Prev</a>
           {% endif %}
-        {% endfor %}
 
-        {% if pagination.has_next %}
-          <a href="{{ url_for('inventory', page=pagination.next_num) }}">Next »</a>
+          {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=1) %}
+            {% if p %}
+              {% if p == pagination.page %}
+                <strong>{{ p }}</strong>
+              {% else %}
+                <a href="{{ url_for('inventory', page=p) }}">{{ p }}</a>
+              {% endif %}
+            {% else %}
+              …
+            {% endif %}
+          {% endfor %}
+
+          {% if pagination.has_next %}
+            <a href="{{ url_for('inventory', page=pagination.next_num) }}">Next »</a>
+          {% endif %}
         {% endif %}
-      {% endif %}
     </div>
   {% endif %}
 </body>

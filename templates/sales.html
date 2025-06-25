@@ -4,107 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AKONTABU - Sales</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/sales.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="icon" href="{{url_for('static', filename='images/AKONTABU.jpg')}}" type="image/x-icon">
-    <style>
-        .sales-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .nav-bar {
-            background: #fff;
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        .nav-links {
-            display: flex;
-            justify-content: space-around;
-        }
-        .nav-link {
-            text-decoration: none;
-            color: #333;
-            padding: 10px 20px;
-            border-radius: 5px;
-            transition: background 0.3s ease;
-        }
-        .nav-link:hover {
-            background: #f0f0f0;
-        }
-        .sales-grid {
-            display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 20px;
-        }
-        .new-sale-form {
-            background: #fff;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            color: #666;
-        }
-        .form-group input,
-        .form-group select {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        .submit-btn {
-            background: #4CAF50;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            width: 100%;
-        }
-        .submit-btn:hover {
-            background: #45a049;
-        }
-        .sales-history {
-            background: #fff;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .sales-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .sales-table th,
-        .sales-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-        }
-        .sales-table th {
-            background: #f8f8f8;
-            font-weight: 600;
-        }
-        .filter-section {
-            margin-bottom: 20px;
-            display: flex;
-            gap: 10px;
-        }
-        .filter-section input {
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-    </style>
+    
 </head>
 <body>
+    <span style="font-weight: bold; font-size: 30px; text-align: center;">
+                    {% if current_user.is_authenticated and current_user.business_name %}
+                                   Hi {{ current_user.business_name }},
+                    {% else %}
+                        AKONTABU
+                    {% endif %}
+  </span>
     <div class="sales-container">
         <div class="nav-bar">
             <div class="nav-links">
@@ -114,6 +26,7 @@
                 <a href="{{ url_for('payments') }}" class="nav-link">Payments</a>
                 <a href="{{ url_for('reports') }}" class="nav-link">Reports</a>
                 <a href="{{ url_for('settings') }}" class="nav-link">Settings</a>
+                <a href="{{ url_for('logout') }}" class="nav-link" style="color:red;">Logout</a>
             </div>
         </div>
 

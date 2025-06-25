@@ -43,6 +43,13 @@
     </style>
 </head>
 <body>
+    <span style="font-weight: bold; font-size: 30px; text-align: center;">
+                    {% if current_user.is_authenticated and current_user.business_name %}
+                                   Hi {{ current_user.business_name }},
+                    {% else %}
+                        AKONTABU
+                    {% endif %}
+  </span>
     <div class="dashboard-container">
         <div class="nav-bar">
             <div class="nav-links">
@@ -52,6 +59,7 @@
                 <a href="{{ url_for('payments') }}" class="nav-link">Payments</a>
                 <a href="{{ url_for('reports') }}" class="nav-link">Reports</a>
                 <a href="{{ url_for('settings') }}" class="nav-link">Settings</a>
+                <a href="{{ url_for('logout') }}" class="nav-link" style="color:red;">Logout</a>
             </div>
         </div>
         
