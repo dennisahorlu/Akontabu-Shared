@@ -7,7 +7,7 @@
             <td>{{ p.date.strftime('%Y-%m-%d') }}</td>
             <td>{{ p.payment_type }}</td>
             <td>{{ p.description }}</td>
-            <td>₵{{ p.amount }}</td>
+            <td>{{ p.amount | currency }}</td>
         </tr>
         {% endfor %}
     </tbody>

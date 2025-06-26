@@ -12,6 +12,8 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(200))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    currency_code = db.Column(db.String(5), default='GHS')  # e.g., 'GHS', 'USD', etc.
+
     
     # Relationships
     products = db.relationship('Product', backref='user', lazy=True, cascade='all, delete-orphan')

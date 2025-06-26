@@ -13,7 +13,7 @@ from io import BytesIO
 import pandas as pd
 from weasyprint import HTML
 from jinja2 import Environment, FileSystemLoader
-import os
+from babel.numbers import format_currency
 
 
 app = Flask(__name__)
@@ -28,9 +28,21 @@ db.init_app(app)
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
+# @app.template_filter('currency')
+# def currency_format(value):
+#     return f"₵{float(value):,.2f}"
+
 @app.template_filter('currency')
-def currency_format(value):
-    return f"₵{float(value):,.2f}"
+def format_currency_filter(value, currency=None):
+    if not value:
+        return ''
+    if not currency:
+        currency = getattr(current_user, 'currency_code', 'GHS')  # ✅ Correct field
+    try:
+        return format_currency(value, currency, locale='en')
+    except:
+        return f"{currency} {value:,.2f}"
+
 
 # Enable SQLite foreign key constraints
 @event.listens_for(Engine, "connect")
@@ -54,9 +66,9 @@ def load_user(user_id):
     return User.query.get(int(user_id))  # assuming you're using SQLAlchemy and User has an id
 
 
-@app.template_filter('currency')
-def currency_format(value):
-    return f"₵{float(value):,.2f}"
+# @app.template_filter('currency')
+# def currency_format(value):
+#     return f"₵{float(value):,.2f}"
 
 @app.context_processor
 def inject_user():
@@ -420,11 +432,17 @@ def export_pdf(report_type):
 
 
 
+# @app.route('/settings')
+# def settings():
+#     if 'user_id' not in session:
+#         return redirect(url_for('login'))
+#     return render_template('settings.html')
+
 @app.route('/settings')
+@login_required
 def settings():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    return render_template('settings.html')
+    return render_template('settings.html', current_currency=current_user.currency_code)
+
 
 @app.route('/logout')
 def logout():
@@ -657,6 +675,19 @@ def get_payment(id):
     })
 
 
+@app.route('/settings/currency', methods=['POST'])
+@login_required
+def update_currency():
+    data = request.get_json()
+    currency = data.get('currency')
+    if currency:
+        current_user.currency_code = currency
+        db.session.commit()  # 🔁 Ensure this line exists
+        return jsonify({'message': 'Currency updated'}), 200
+    return jsonify({'error': 'No currency provided'}), 400
+
+
+
 
 
  # Initialize database
@@ -665,3 +696,5 @@ with app.app_context():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+    

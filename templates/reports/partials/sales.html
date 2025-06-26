@@ -7,8 +7,8 @@
             <td>{{ s.date.strftime('%Y-%m-%d') }}</td>
             <td>{{ s.product.name }}</td>
             <td>{{ s.quantity }}</td>
-            <td>₵{{ s.price }}</td>
-            <td>₵{{ s.quantity * s.price }}</td>
+            <td>{{ s.price | currency}}</td>
+            <td>{{ s.quantity * s.price | currency}}</td>
         </tr>
         {% endfor %}
     </tbody>

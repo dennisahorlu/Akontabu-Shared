@@ -92,9 +92,9 @@
 
     <div id="profit" class="tab-content active">
         <h3>Profit Summary</h3>
-        <p><strong>Total Revenue:</strong> ₵{{ total_revenue|round(2) }}</p>
-        <p><strong>Total Payments:</strong> ₵{{ total_payments|round(2) }}</p>
-        <p><strong>Net Profit:</strong> ₵{{ profit|round(2) }}</p>
+        <p><strong>Total Revenue:</strong> {{ total_revenue|round(2) | currency}}</p>
+        <p><strong>Total Payments:</strong> {{ total_payments|round(2) | currency }}</p>
+        <p><strong>Net Profit:</strong> {{ profit|round(2) | currency }}</p>
     </div>
 
     <div id="inventory" class="tab-content">

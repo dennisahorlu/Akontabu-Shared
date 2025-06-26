@@ -6,8 +6,8 @@
         <tr>
             <td>{{ p.name }}</td>
             <td>{{ p.quantity }}</td>
-            <td>₵{{ p.cost_price }}</td>
-            <td>₵{{ p.selling_price }}</td>
+            <td>{{ p.cost_price | currency}}</td>
+            <td>{{ p.selling_price| currency }}</td>
         </tr>
         {% endfor %}
     </tbody>

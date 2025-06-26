@@ -3,10 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AKONTABU - Dashboard</title>
+    <title>AKONTABU - Settings</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="icon" href="{{url_for('static', filename='images/AKONTABU.jpg')}}" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
+    <!-- Toastify + Google Fonts (already present) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Select2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+
     <style>
         .dashboard-container {
             max-width: 1200px;
@@ -76,6 +88,72 @@
         .inventory-table tr:last-child td {
             border-bottom: none;
         }
+        body {
+        font-family: 'Poppins', sans-serif;
+        background: #f4f4f4;
+        padding: 30px;
+        margin: 0;
+    }
+
+        .container {
+        max-width: 1200px;
+        margin: auto;
+        background: #fff;
+        padding: 25px 30px;
+        border-radius: 10px;
+        box-shadow: 0 0 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .heading, .h2 {
+        margin-bottom: 20px;
+        color: #333;
+        }
+
+        .form-group {
+        margin-bottom: 20px;
+        width: 300px;
+        padding: 10px;
+        
+        }
+
+        label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 10px;
+        }
+
+        select {
+        width: 100%;
+        padding: 12px;
+        font-size: 16px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        }
+
+        option {
+        padding: 8px;
+        }
+
+        .flag {
+        width: 20px;
+        height: 14px;
+        margin-right: 8px;
+        vertical-align: middle;
+        }
+
+        .submit-btn {
+        background: #4CAF50;
+        color: white;
+        border: none;
+        padding: 12px 25px;
+        font-size: 16px;
+        border-radius: 5px;
+        cursor: pointer;       
+        }
+
+        .submit-btn:hover {
+        background-color: #45a049;
+        }
     </style>
 </head>
 <body>
@@ -99,4 +177,89 @@
             </div>
         </div>
     </div>
+        <div class="container">
+            <h2>Select Currency</h2>
+                <form id="currency-form">
+                    <div class="form-group">
+                        <!-- <label for="currency">Select Currency</label> -->
+                        <select id="currency" class="js-currency-select" style="width: 100%;"></select>
+                    </div>
+
+                    <button type="submit" class="submit-btn">Save Settings</button>
+                </form>
+            </div>    
+        </div>
+
+<script>
+const currencySelect = document.getElementById('currency');
+const currentCurrency = "{{ current_currency }}";  // Injected by Flask
+
+const currencies = [
+  { code: 'USD', name: 'United States Dollar', country: 'us' },
+  { code: 'EUR', name: 'Euro', country: 'eu' },
+  { code: 'GHS', name: 'Ghanaian Cedi', country: 'gh' },
+  { code: 'NGN', name: 'Nigerian Naira', country: 'ng' },
+  { code: 'ZAR', name: 'South African Rand', country: 'za' },
+  { code: 'JPY', name: 'Japanese Yen', country: 'jp' },
+  { code: 'CNY', name: 'Chinese Yuan', country: 'cn' },
+  { code: 'INR', name: 'Indian Rupee', country: 'in' },
+  { code: 'CAD', name: 'Canadian Dollar', country: 'ca' },
+  { code: 'AUD', name: 'Australian Dollar', country: 'au' }
+];
+
+// Populate options
+currencies.forEach(currency => {
+  const option = new Option(`${currency.name} (${currency.code})`, currency.code, false, currency.code === currentCurrency);
+  $(option).attr('data-flag', `https://flagcdn.com/24x18/${currency.country}.png`);
+  $('#currency').append(option);
+});
+
+// Custom format for dropdown and selected item
+function formatCurrencyOption(state) {
+  if (!state.id) return state.text;
+  const flagUrl = $(state.element).data('flag');
+  return $(`<span><img src="${flagUrl}" style="width: 20px; height: 14px; margin-right: 8px;"> ${state.text}</span>`);
+}
+
+// Initialize Select2 with custom template
+$(document).ready(() => {
+  $('#currency').select2({
+    templateResult: formatCurrencyOption,
+    templateSelection: formatCurrencyOption,
+    minimumResultsForSearch: -1 // disables search box
+  });
+
+  // Form submission
+  $('#currency-form').on('submit', function (e) {
+    e.preventDefault();
+    const selectedCurrency = $('#currency').val();
+    fetch('/settings/currency', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currency: selectedCurrency })
+    })
+    .then(res => res.json())
+    .then(data => {
+      Toastify({
+        text: "✅ Currency preference saved",
+        duration: 3000,
+        gravity: "top",
+        position: "right",
+        backgroundColor: "#4CAF50"
+      }).showToast();
+    })
+    .catch(() => {
+      Toastify({
+        text: "❌ Failed to save currency",
+        duration: 3000,
+        gravity: "top",
+        position: "right",
+        backgroundColor: "#f44336"
+      }).showToast();
+    });
+  });
+});
+</script>
+
+
 </body>

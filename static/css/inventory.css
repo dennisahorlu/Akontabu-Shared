@@ -35,11 +35,23 @@ table {
         background: #4CAF50; 
         color: white; 
     }
-    .inventory-container, .Inventory-grid { 
+    .inventory-container { 
         max-width: 1200px; 
         margin: auto; 
         padding: 20px; 
+        
     }
+
+    .Inventory-grid {
+         max-width: 1200px; 
+        margin: auto; 
+        padding: 20px; 
+        box-sizing: border-box;
+        border-radius: 10px; 
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+
+    }
+
     .nav-bar { 
         background: #fff; 
         padding: 15px; 
@@ -63,11 +75,14 @@ table {
     .inventory-table { 
         width: 100%; 
         border-collapse: collapse; 
+        
+        
     }
     .inventory-table th, .payment-table td { 
         padding: 12px; 
         border-bottom: 1px solid #eee; 
         text-align: left; 
+        
     }
 
 .user_name {
