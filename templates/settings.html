@@ -177,69 +177,107 @@
             </div>
         </div>
     </div>
-        <div class="container">
-            <h2>Select Currency</h2>
-                <form id="currency-form">
-                    <div class="form-group">
-                        <!-- <label for="currency">Select Currency</label> -->
-                        <select id="currency" class="js-currency-select" style="width: 100%;"></select>
-                    </div>
+    <div class="container">
+    <h2>Select Currency</h2>
+    <form id="currency-form">
+        <div class="form-group">
+            <select id="currency" class="js-currency-select" style="width: 100%;"></select>
+        </div>
+        <button type="submit" class="submit-btn">Save Settings</button>
+    </form>
 
-                    <button type="submit" class="submit-btn">Save Settings</button>
-                </form>
-            </div>    
+    <h2>Update Profile</h2>
+    <form id="profile-form" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="business_name">Business Name</label>
+            <input type="text" id="business_name" name="business_name" value="{{ current_user.business_name or '' }}">
         </div>
 
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" value="{{ current_user.email }}">
+        </div>
+
+        <div class="form-group">
+            <label for="password">New Password</label>
+            <input type="password" id="password" name="password" placeholder="Leave blank to keep current">
+        </div>
+
+        <div class="form-group">
+            <label for="logo">Business Logo</label>
+            <input type="file" id="logo" name="logo" accept="image/*">
+            {% if current_user.logo_path %}
+            <br>
+            <!-- <img id="logo-preview" src="{{ url_for('static', filename=current_user.logo_path) }}" style="max-height: 80px; margin-top: 10px;"> -->
+            {% endif %}
+        </div>
+
+        <button type="submit" class="submit-btn">Update Profile</button>
+    </form>
+</div>
+
+
 <script>
-const currencySelect = document.getElementById('currency');
-const currentCurrency = "{{ current_currency }}";  // Injected by Flask
+  const currencies = [
+    { code: 'USD', name: 'United States Dollar', country: 'us' },
+    { code: 'EUR', name: 'Euro', country: 'eu' },
+    { code: 'GHS', name: 'Ghanaian Cedi', country: 'gh' },
+    { code: 'NGN', name: 'Nigerian Naira', country: 'ng' },
+    { code: 'ZAR', name: 'South African Rand', country: 'za' },
+    { code: 'JPY', name: 'Japanese Yen', country: 'jp' },
+    { code: 'CNY', name: 'Chinese Yuan', country: 'cn' },
+    { code: 'INR', name: 'Indian Rupee', country: 'in' },
+    { code: 'CAD', name: 'Canadian Dollar', country: 'ca' },
+    { code: 'AUD', name: 'Australian Dollar', country: 'au' }
+  ];
 
-const currencies = [
-  { code: 'USD', name: 'United States Dollar', country: 'us' },
-  { code: 'EUR', name: 'Euro', country: 'eu' },
-  { code: 'GHS', name: 'Ghanaian Cedi', country: 'gh' },
-  { code: 'NGN', name: 'Nigerian Naira', country: 'ng' },
-  { code: 'ZAR', name: 'South African Rand', country: 'za' },
-  { code: 'JPY', name: 'Japanese Yen', country: 'jp' },
-  { code: 'CNY', name: 'Chinese Yuan', country: 'cn' },
-  { code: 'INR', name: 'Indian Rupee', country: 'in' },
-  { code: 'CAD', name: 'Canadian Dollar', country: 'ca' },
-  { code: 'AUD', name: 'Australian Dollar', country: 'au' }
-];
+  const currentCurrency = "{{ current_currency }}";
 
-// Populate options
-currencies.forEach(currency => {
-  const option = new Option(`${currency.name} (${currency.code})`, currency.code, false, currency.code === currentCurrency);
-  $(option).attr('data-flag', `https://flagcdn.com/24x18/${currency.country}.png`);
-  $('#currency').append(option);
-});
+  function formatCurrencyOption(state) {
+    if (!state.id) return state.text;
+    const flagUrl = $(state.element).data('flag');
+    return $(`<span><img src="${flagUrl}" style="width: 20px; height: 14px; margin-right: 8px;"> ${state.text}</span>`);
+  }
 
-// Custom format for dropdown and selected item
-function formatCurrencyOption(state) {
-  if (!state.id) return state.text;
-  const flagUrl = $(state.element).data('flag');
-  return $(`<span><img src="${flagUrl}" style="width: 20px; height: 14px; margin-right: 8px;"> ${state.text}</span>`);
-}
+  $(document).ready(function () {
+    // Populate currency options before initializing Select2
+    const $currencySelect = $('#currency');
+    $currencySelect.empty();
 
-// Initialize Select2 with custom template
+    currencies.forEach(currency => {
+      const isSelected = currency.code === currentCurrency;
+      const option = new Option(`${currency.name} (${currency.code})`, currency.code, isSelected, isSelected);
+      $(option).attr('data-flag', `https://flagcdn.com/24x18/${currency.country}.png`);
+      $currencySelect.append(option);
+    });
+
+    $currencySelect.select2({
+      templateResult: formatCurrencyOption,
+      templateSelection: formatCurrencyOption,
+      minimumResultsForSearch: -1
+    });
+
 $(document).ready(() => {
-  $('#currency').select2({
-    templateResult: formatCurrencyOption,
-    templateSelection: formatCurrencyOption,
-    minimumResultsForSearch: -1 // disables search box
-  });
-
-  // Form submission
+  // CURRENCY FORM SUBMIT
   $('#currency-form').on('submit', function (e) {
     e.preventDefault();
+
     const selectedCurrency = $('#currency').val();
+    console.log("Selected:", selectedCurrency); // Debug output
+
     fetch('/settings/currency', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({ currency: selectedCurrency })
     })
-    .then(res => res.json())
+    .then(res => {
+      if (!res.ok) throw new Error("Network response was not ok");
+      return res.json();
+    })
     .then(data => {
+      console.log("Currency response:", data);
       Toastify({
         text: "✅ Currency preference saved",
         duration: 3000,
@@ -248,7 +286,8 @@ $(document).ready(() => {
         backgroundColor: "#4CAF50"
       }).showToast();
     })
-    .catch(() => {
+    .catch(err => {
+      console.error("Currency save failed", err);
       Toastify({
         text: "❌ Failed to save currency",
         duration: 3000,
@@ -259,7 +298,38 @@ $(document).ready(() => {
     });
   });
 });
+
+    // Profile form
+    $('#profile-form').on('submit', function (e) {
+      e.preventDefault();
+      const formData = new FormData(this);
+      fetch('/settings/profile', {
+        method: 'POST',
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        Toastify({
+          text: data.message || '✅ Profile updated!',
+          duration: 3000,
+          gravity: 'top',
+          position: 'right',
+          backgroundColor: "#4CAF50"
+        }).showToast();
+        if (data.logo_url) {
+          $('#logo-preview').attr('src', data.logo_url);
+        }
+      })
+      .catch(err => {
+        Toastify({
+          text: "❌ Profile update failed",
+          duration: 3000,
+          gravity: 'top',
+          position: 'right',
+          backgroundColor: "#f44336"
+        }).showToast();
+      });
+    });
+  });
 </script>
-
-
 </body>

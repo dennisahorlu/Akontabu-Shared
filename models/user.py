@@ -13,6 +13,7 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(200))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     currency_code = db.Column(db.String(5), default='GHS')  # e.g., 'GHS', 'USD', etc.
+    logo_path = db.Column(db.String(255))
 
     
     # Relationships

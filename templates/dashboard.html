@@ -13,13 +13,21 @@
     </style>
 </head>
 <body>
-  <span class="user_name">
-                    {% if current_user.is_authenticated and current_user.business_name %}
-                                   Hi {{ current_user.business_name }},
-                    {% else %}
-                        AKONTABU
-                    {% endif %}
+  <div style="display: flex; align-items: center; gap: 10px;">
+  {% if current_user.is_authenticated and current_user.logo_path %}
+    <img src="{{ url_for('static', filename=current_user.logo_path) }}" alt="Logo"
+         style="height: 40px; border-radius: 5px;">
+  {% endif %}
+
+  <span style="font-weight: bold; font-size: 20px;">
+    {% if current_user.is_authenticated and current_user.business_name %}
+      Hi {{ current_user.business_name }},
+    {% else %}
+      AKONTABU
+    {% endif %}
   </span>
+</div>
+
   <span>Currency: {{ current_user.currency_code }}</span>
 
     <div class="dashboard-container">

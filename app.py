@@ -14,13 +14,23 @@ import pandas as pd
 from weasyprint import HTML
 from jinja2 import Environment, FileSystemLoader
 from babel.numbers import format_currency
+from werkzeug.security import generate_password_hash
+from werkzeug.utils import secure_filename
+from xhtml2pdf import pisa
+import openpyxl
+from openpyxl.utils import get_column_letter
+from collections import defaultdict
+
+
 
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///akontabu.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
+app.config['UPLOAD_FOLDER'] = os.path.join('static', 'uploads')
+app.config['UPLOAD_FOLDER'] = os.path.join(app.static_folder, 'uploads')
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 
 # Initialize extensions
@@ -302,35 +312,54 @@ def reports():
     start = request.args.get('start')
     end = request.args.get('end')
 
-    # Base queries
-    payment_query = Payment.query.filter_by(user_id=current_user.id)
-    sale_query = Sale.query.filter_by(user_id=current_user.id)
-    inventory_query = Product.query.filter_by(user_id=current_user.id)
+    def date_filter(query, model):
+        if start and end:
+            try:
+                s_date = datetime.strptime(start, '%Y-%m-%d')
+                e_date = datetime.strptime(end, '%Y-%m-%d')
+                return query.filter(model.date.between(s_date, e_date))
+            except ValueError:
+                flash("Invalid date range")
+        return query
 
-    if start and end:
-        try:
-            start_date = datetime.strptime(start, '%Y-%m-%d')
-            end_date = datetime.strptime(end, '%Y-%m-%d')
-            payment_query = payment_query.filter(Payment.date.between(start_date, end_date))
-            sale_query = sale_query.filter(Sale.date.between(start_date, end_date))
-        except ValueError:
-            flash("Invalid date range")
+    # Filtered queries
+    payments = date_filter(Payment.query.filter_by(user_id=current_user.id), Payment).all()
+    sales = date_filter(Sale.query.filter_by(user_id=current_user.id), Sale).all()
+    inventory = Product.query.filter_by(user_id=current_user.id).all()
 
-    # Data
-    payments = payment_query.all()
-    sales = sale_query.all()
-    inventory = inventory_query.all()
+    # Grouped Sales
+    sales_by_product = defaultdict(lambda: {'quantity': 0, 'revenue': 0})
+    for s in sales:
+        pname = s.product.name if s.product else 'Unknown'
+        sales_by_product[pname]['quantity'] += s.quantity
+        sales_by_product[pname]['revenue'] += s.price * s.quantity
 
-    # Summaries
-    total_revenue = sum(s.price * s.quantity for s in sales)
-    total_payments = sum(p.amount for p in payments)
+    # Grouped Payments
+    payments_by_type = defaultdict(float)
+    for p in payments:
+        key = f"{p.payment_type} - {p.description or 'Other'}"
+        payments_by_type[key] += p.amount
+
+    # Inventory Summary
+    inventory_data = []
+    for p in inventory:
+        inventory_data.append({
+            'name': p.name,
+            'quantity': p.quantity,
+            'cost_price': p.cost_price,
+            'selling_price': p.selling_price,
+            'value': p.cost_price * p.quantity
+        })
+
+    total_revenue = sum(val['revenue'] for val in sales_by_product.values())
+    total_payments = sum(payments_by_type.values())
     profit = total_revenue - total_payments
 
     return render_template(
         'reports.html',
-        payments=payments,
-        sales=sales,
-        inventory=inventory,
+        sales_by_product=sales_by_product,
+        payments_by_type=payments_by_type,
+        inventory_data=inventory_data,
         total_revenue=total_revenue,
         total_payments=total_payments,
         profit=profit,
@@ -428,15 +457,6 @@ def export_pdf(report_type):
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'attachment; filename={report_type}_report.pdf'
     return response
-
-
-
-
-# @app.route('/settings')
-# def settings():
-#     if 'user_id' not in session:
-#         return redirect(url_for('login'))
-#     return render_template('settings.html')
 
 @app.route('/settings')
 @login_required
@@ -685,6 +705,36 @@ def update_currency():
         db.session.commit()  # 🔁 Ensure this line exists
         return jsonify({'message': 'Currency updated'}), 200
     return jsonify({'error': 'No currency provided'}), 400
+
+@app.route('/settings/profile', methods=['POST'])
+@login_required
+def update_profile():
+    business_name = request.form.get('business_name')
+    email = request.form.get('email')
+    password = request.form.get('password')
+    logo_file = request.files.get('logo')
+
+    user = current_user
+    user.business_name = business_name
+    user.email = email
+
+    if password:
+        from werkzeug.security import generate_password_hash
+        user.password = generate_password_hash(password)
+
+    if logo_file:
+        filename = secure_filename(logo_file.filename)
+        logo_path = os.path.join('uploads', filename)  # or your folder e.g. static/uploads
+        full_path = os.path.join(app.static_folder, 'uploads', filename)
+        logo_file.save(full_path)
+        user.logo_path = f'uploads/{filename}'
+
+    db.session.commit()
+
+    return jsonify({
+        'message': 'Profile updated successfully',
+        'logo_url': url_for('static', filename=user.logo_path)
+    })
 
 
 
