@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, g, flash
 import os
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from sqlalchemy import event, Engine
 from sqlalchemy.orm import joinedload
 from flask_login import current_user, login_required, login_user
@@ -21,14 +21,11 @@ import openpyxl
 from openpyxl.utils import get_column_letter
 from collections import defaultdict
 
-
-
-
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///akontabu.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['UPLOAD_FOLDER'] = os.path.join('static', 'uploads')
+# app.config['UPLOAD_FOLDER'] = os.path.join('static', 'uploads')
 app.config['UPLOAD_FOLDER'] = os.path.join(app.static_folder, 'uploads')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
@@ -37,10 +34,6 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 db.init_app(app)
 login_manager.init_app(app)
 login_manager.login_view = 'login'
-
-# @app.template_filter('currency')
-# def currency_format(value):
-#     return f"₵{float(value):,.2f}"
 
 @app.template_filter('currency')
 def format_currency_filter(value, currency=None):
@@ -68,17 +61,11 @@ def round_up_to_half(v):
 @app.before_request
 def load_user():
     if 'user_id' in session:
-        # g.user = User.query.get(session['user_id'])
         g.user = db.session.get(User, session['user_id'])
 
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))  # assuming you're using SQLAlchemy and User has an id
-
-
-# @app.template_filter('currency')
-# def currency_format(value):
-#     return f"₵{float(value):,.2f}"
 
 @app.context_processor
 def inject_user():
@@ -147,21 +134,26 @@ def dashboard():
         func.sum(Sale.quantity * Sale.price)
     ).filter(Sale.user_id == current_user.id).scalar() or 0
 
+    total_expenditure = product_costs + other_costs
+
+    page = request.args.get('page', 1, type=int)
+    per_page = 5
+
+    # ✅ Only fetch products with quantity > 0
+    products_query = Product.query.filter_by(user_id=current_user.id).filter(Product.quantity > 0)
+    pagination = products_query.paginate(page=page, per_page=per_page, error_out=False)
+
+    # ✅ Build inventory details from paginated products
+    inventory = [{
+        'name': p.name,
+        'quantity': p.quantity,
+        'value': round((p.quantity or 0) * (p.selling_price or 0), 2)
+    } for p in pagination.items]
+
+    # ✅ Total inventory value of all available products (not just paginated)
     inventory_value = db.session.query(
         func.sum(Product.quantity * Product.selling_price)
-    ).filter(Product.user_id == current_user.id).scalar() or 0
-
-    # Build inventory list for display in table
-    inventory = []
-    products = Product.query.filter_by(user_id=current_user.id).all()
-    for p in products:
-        inventory.append({
-            'name': p.name,
-            'quantity': p.quantity,
-            'value': round((p.quantity or 0) * (p.selling_price or 0), 2)
-        })
-
-    total_expenditure = product_costs + other_costs
+    ).filter(Product.user_id == current_user.id, Product.quantity > 0).scalar() or 0
 
     return render_template('dashboard.html',
         total_sales=round(total_sales, 2),
@@ -169,19 +161,20 @@ def dashboard():
         product_costs=round(product_costs, 2),
         other_costs=round(other_costs, 2),
         inventory_value=round(inventory_value, 2),
-        inventory=inventory  # ✅ key part
+        inventory=inventory,
+        products=pagination.items,
+        pagination=pagination
     )
-
-
 
 @app.route('/inventory')
 @login_required
 def inventory():
     page = request.args.get('page', 1, type=int)
-    per_page = 10
+    per_page = 5
 
-    products_query = Product.query.filter_by(user_id=current_user.id)
-    pagination = products_query.paginate(page=page, per_page=per_page, error_out=False)
+    # ✅ Only paginate products with quantity > 0
+    products_query = Product.query.filter_by(user_id=current_user.id).filter(Product.quantity > 0)
+    pagination = products_query.order_by(Product.name).paginate(page=page, per_page=per_page, error_out=False)
 
     return render_template(
         'inventory.html',
@@ -277,10 +270,22 @@ def sales():
         except ValueError:
             flash("Invalid date range", "error")
 
-    sales = sales_query.order_by(Sale.date.desc()).all()
+    sales_query = sales_query.order_by(Sale.date.desc())
+
+    # Apply pagination to sales
+    page = request.args.get('page', 1, type=int)
+    per_page = 7
+    pagination = sales_query.paginate(page=page, per_page=per_page, error_out=False)
+
+    # Load all products (for sale form)
     products = Product.query.filter_by(user_id=session['user_id']).all()
 
-    return render_template('sales.html', sales=sales, products=products)
+    return render_template('sales.html',
+        sales=pagination.items,
+        pagination=pagination,
+        products=products
+    )
+
 
 
 @app.route('/payments')
@@ -297,13 +302,21 @@ def payments():
     if end_date:
         query = query.filter(Payment.date <= datetime.strptime(end_date, "%Y-%m-%d"))
 
-    # Default: show only 3 recent payments unless filtered
-    if not start_date and not end_date:
-        payments = query.order_by(Payment.date.desc()).limit(3).all()
-    else:
-        payments = query.order_by(Payment.date.desc()).all()
+    query = query.order_by(Payment.date.desc())
 
-    return render_template('payments.html', payments=payments, current_date=date.today().strftime('%Y-%m-%d'))
+    page = request.args.get('page', 1, type=int)
+    per_page = 3
+
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    payments = pagination.items  # ✅ Use only paginated items
+
+    return render_template(
+        'payments.html',
+        payments=payments,
+        pagination=pagination,
+        current_date=date.today().strftime('%Y-%m-%d')
+    )
+
 
 
 @app.route('/reports')
@@ -491,9 +504,6 @@ def get_product(product_id):
     if product:
         return jsonify({'id': product.id, 'name': product.name, 'selling_price': product.selling_price})
     return jsonify({'error': 'Product not found'}), 404
-
-
-from datetime import datetime, timezone
 
 @app.route('/api/payments', methods=['POST'])
 @login_required
@@ -702,7 +712,7 @@ def update_currency():
     currency = data.get('currency')
     if currency:
         current_user.currency_code = currency
-        db.session.commit()  # 🔁 Ensure this line exists
+        db.session.commit()  
         return jsonify({'message': 'Currency updated'}), 200
     return jsonify({'error': 'No currency provided'}), 400
 

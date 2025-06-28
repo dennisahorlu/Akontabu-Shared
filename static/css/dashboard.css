@@ -136,3 +136,7 @@
             font-size: 30px; 
             text-align: center;
         }
+        .nav-link i {
+            margin-right: 8px;
+        }
+            

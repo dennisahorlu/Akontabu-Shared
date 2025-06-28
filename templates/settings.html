@@ -1,335 +1,376 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AKONTABU - Settings</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link rel="icon" href="{{url_for('static', filename='images/AKONTABU.jpg')}}" type="image/x-icon">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
-    <!-- Select2 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AKONTABU - Settings</title>
 
-    <!-- Toastify + Google Fonts (already present) -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- External Libraries -->
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+  <link rel="icon" href="{{url_for('static', filename='images/AKONTABU.jpg')}}" type="image/x-icon">
+  <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 
-    <!-- Select2 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-
-
-    <style>
-        .dashboard-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .nav-bar {
-            background: #fff;
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        .nav-links {
-            display: flex;
-            justify-content: space-around;
-        }
-        .nav-link {
-            text-decoration: none;
-            color: #333;
-            padding: 10px 20px;
-            border-radius: 5px;
-            transition: background 0.3s ease;
-        }
-        .nav-link:hover {
-            background: #f0f0f0;
-        }
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        .metric-card {
-            background: #fff;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .metric-title {
-            color: #666;
-            font-size: 1em;
-            margin-bottom: 10px;
-        }
-        .metric-value {
-            font-size: 2em;
-            font-weight: 600;
-            color: #333;
-        }
-        .inventory-table {
-            width: 100%;
-            background: #fff;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        .inventory-table th,
-        .inventory-table td {
-            padding: 15px;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-        }
-        .inventory-table th {
-            background: #f8f8f8;
-            font-weight: 600;
-        }
-        .inventory-table tr:last-child td {
-            border-bottom: none;
-        }
-        body {
-        font-family: 'Poppins', sans-serif;
-        background: #f4f4f4;
-        padding: 30px;
-        margin: 0;
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 30px;
     }
 
-        .container {
-        max-width: 1200px;
-        margin: auto;
-        background: #fff;
-        padding: 25px 30px;
-        border-radius: 10px;
-        box-shadow: 0 0 12px rgba(0, 0, 0, 0.08);
-        }
+    .dashboard-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
 
-        .heading, .h2 {
-        margin-bottom: 20px;
-        color: #333;
-        }
+    .nav-bar {
+      background: #fff;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+    }
 
-        .form-group {
-        margin-bottom: 20px;
-        width: 300px;
-        padding: 10px;
-        
-        }
+    .nav-links {
+      display: flex;
+      justify-content: space-around;
+      flex-wrap: wrap;
+    }
 
-        label {
-        display: block;
-        font-weight: 600;
-        margin-bottom: 10px;
-        }
+    .nav-link {
+      text-decoration: none;
+      color: #333;
+      padding: 10px 20px;
+      border-radius: 5px;
+      transition: background 0.3s ease;
+    }
 
-        select {
-        width: 100%;
-        padding: 12px;
-        font-size: 16px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        }
+    .nav-link:hover {
+      background: #f0f0f0;
+    }
 
-        option {
-        padding: 8px;
-        }
+    .settings-wrapper {
+      display: flex;
+      gap: 30px;
+      flex-wrap: wrap;
+      justify-content: space-between;
+    }
 
-        .flag {
-        width: 20px;
-        height: 14px;
-        margin-right: 8px;
-        vertical-align: middle;
-        }
+    .form-box {
+      background: white;
+      padding: 25px 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.08);
+      width: 100%;
+      max-width: 550px;
+      flex: 1;
+    }
 
-        .submit-btn {
-        background: #4CAF50;
-        color: white;
-        border: none;
-        padding: 12px 25px;
-        font-size: 16px;
-        border-radius: 5px;
-        cursor: pointer;       
-        }
+    h2 {
+      margin-top: 0;
+    }
 
-        .submit-btn:hover {
-        background-color: #45a049;
-        }
-    </style>
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      font-weight: 600;
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    select, input[type="text"], input[type="email"], input[type="password"], input[type="file"] {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    .submit-btn {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 12px 25px;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .submit-btn:hover {
+      background-color: #45a049;
+    }
+
+    .valid { color: green; }
+    .invalid { color: red; }
+
+    #password-criteria {
+      list-style: none;
+      padding-left: 0;
+      font-size: 14px;
+    }
+
+    #match-status {
+      font-size: 14px;
+      margin-top: 5px;
+    }
+
+    #logo-preview-container img {
+      max-height: 80px;
+      margin-top: 10px;
+    }
+
+    @media screen and (max-width: 900px) {
+      .settings-wrapper {
+        flex-direction: column;
+      }
+    }
+  </style>
 </head>
 <body>
-    <span style="font-weight: bold; font-size: 30px; text-align: center;">
-                    {% if current_user.is_authenticated and current_user.business_name %}
-                                   Hi {{ current_user.business_name }},
-                    {% else %}
-                        AKONTABU
-                    {% endif %}
-  </span>
-    <div class="dashboard-container">
-        <div class="nav-bar">
-            <div class="nav-links">              
-                <a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a>
-                <a href="{{ url_for('sales') }}" class="nav-link">Sales</a>
-                <a href="{{ url_for('inventory') }}" class="nav-link">Inventory</a>
-                <a href="{{ url_for('payments') }}" class="nav-link">Payments</a>
-                <a href="{{ url_for('reports') }}" class="nav-link">Reports</a>
-                <a href="{{ url_for('settings') }}" class="nav-link">Settings</a>
-                <a href="{{ url_for('logout') }}" class="nav-link" style="color:red;">Logout</a>
-            </div>
-        </div>
-    </div>
-    <div class="container">
-    <h2>Select Currency</h2>
-    <form id="currency-form">
-        <div class="form-group">
-            <select id="currency" class="js-currency-select" style="width: 100%;"></select>
-        </div>
-        <button type="submit" class="submit-btn">Save Settings</button>
-    </form>
 
-    <h2>Update Profile</h2>
-    <form id="profile-form" enctype="multipart/form-data">
-        <div class="form-group">
+  <span style="font-weight: bold; font-size: 30px; text-align: center; display: block;">
+    {% if current_user.is_authenticated and current_user.business_name %}
+      Hi {{ current_user.business_name }},
+    {% else %}
+      AKONTABU
+    {% endif %}
+  </span>
+
+  <div class="dashboard-container">
+    <div class="nav-bar">
+      <div class="nav-links">
+        <a href="{{ url_for('dashboard') }}" class="nav-link"><i class="bi bi-speedometer2"></i> Dashboard</a>
+        <a href="{{ url_for('sales') }}" class="nav-link"><i class="bi bi-cart-check"></i> Sales</a>
+        <a href="{{ url_for('inventory') }}" class="nav-link"><i class="bi bi-box-seam"></i> Inventory</a>
+        <a href="{{ url_for('payments') }}" class="nav-link"><i class="bi bi-cash-stack"></i> Payments</a>
+        <a href="{{ url_for('reports') }}" class="nav-link"><i class="bi bi-bar-chart-line"></i> Reports</a>
+        <a href="{{ url_for('settings') }}" class="nav-link"><i class="bi bi-gear"></i> Settings</a>
+        <a href="{{ url_for('logout') }}" class="nav-link" style="color:red;"><i class="bi bi-box-arrow-right"></i> Logout</a>
+      </div>
+    </div>
+
+    <div class="settings-wrapper">
+      <!-- Currency Settings -->
+      <div class="form-box">
+        <h2>Currency Settings</h2>
+        <form id="currency-form">
+          <div class="form-group">
+            <label for="currency">Currency</label>
+            <select id="currency" class="js-currency-select"></select>
+          </div>
+          <button type="submit" class="submit-btn">Save Currency</button>
+        </form>
+      </div>
+
+      <!-- Profile Update -->
+      <div class="form-box">
+        <h2>Update Profile</h2>
+        <form id="profile-form" enctype="multipart/form-data">
+          <div class="form-group">
             <label for="business_name">Business Name</label>
             <input type="text" id="business_name" name="business_name" value="{{ current_user.business_name or '' }}">
-        </div>
+          </div>
 
-        <div class="form-group">
+          <div class="form-group">
             <label for="email">Email</label>
             <input type="email" id="email" name="email" value="{{ current_user.email }}">
-        </div>
+          </div>
 
-        <div class="form-group">
+          <div class="form-group">
             <label for="password">New Password</label>
-            <input type="password" id="password" name="password" placeholder="Leave blank to keep current">
-        </div>
+            <input type="password" id="password" name="password">
+            <ul id="password-criteria">
+              <li id="length" class="invalid">❌ At least 8 characters</li>
+              <li id="uppercase" class="invalid">❌ One uppercase letter</li>
+              <li id="number" class="invalid">❌ One number</li>
+              <li id="special" class="invalid">❌ One special character</li>
+            </ul>
+          </div>
 
-        <div class="form-group">
+          <div class="form-group">
+            <label for="confirm_password">Confirm New Password</label>
+            <input type="password" id="confirm_password" name="confirm_password">
+            <p id="match-status" class="invalid">❌ Passwords do not match</p>
+          </div>
+
+          <div class="form-group">
             <label for="logo">Business Logo</label>
             <input type="file" id="logo" name="logo" accept="image/*">
-            {% if current_user.logo_path %}
-            <br>
-            <!-- <img id="logo-preview" src="{{ url_for('static', filename=current_user.logo_path) }}" style="max-height: 80px; margin-top: 10px;"> -->
-            {% endif %}
-        </div>
+            <div id="logo-preview-container"></div>
+          </div>
 
-        <button type="submit" class="submit-btn">Update Profile</button>
-    </form>
-</div>
+          <button type="submit" class="submit-btn">Update Profile</button>
+        </form>
+      </div>
+    </div>
+  </div>
 
+  <script>
+    const currencies = [
+      { code: 'USD', name: 'United States Dollar', country: 'us' },
+      { code: 'EUR', name: 'Euro', country: 'eu' },
+      { code: 'GHS', name: 'Ghanaian Cedi', country: 'gh' },
+      { code: 'NGN', name: 'Nigerian Naira', country: 'ng' },
+      { code: 'ZAR', name: 'South African Rand', country: 'za' },
+      { code: 'JPY', name: 'Japanese Yen', country: 'jp' },
+      { code: 'CNY', name: 'Chinese Yuan', country: 'cn' },
+      { code: 'INR', name: 'Indian Rupee', country: 'in' },
+      { code: 'CAD', name: 'Canadian Dollar', country: 'ca' },
+      { code: 'AUD', name: 'Australian Dollar', country: 'au' }
+    ];
 
-<script>
-  const currencies = [
-    { code: 'USD', name: 'United States Dollar', country: 'us' },
-    { code: 'EUR', name: 'Euro', country: 'eu' },
-    { code: 'GHS', name: 'Ghanaian Cedi', country: 'gh' },
-    { code: 'NGN', name: 'Nigerian Naira', country: 'ng' },
-    { code: 'ZAR', name: 'South African Rand', country: 'za' },
-    { code: 'JPY', name: 'Japanese Yen', country: 'jp' },
-    { code: 'CNY', name: 'Chinese Yuan', country: 'cn' },
-    { code: 'INR', name: 'Indian Rupee', country: 'in' },
-    { code: 'CAD', name: 'Canadian Dollar', country: 'ca' },
-    { code: 'AUD', name: 'Australian Dollar', country: 'au' }
-  ];
+    const currentCurrency = "{{ current_currency or 'GHS' }}";
 
-  const currentCurrency = "{{ current_currency }}";
+    function formatCurrencyOption(state) {
+      if (!state.id) return state.text;
+      const flagUrl = $(state.element).data('flag');
+      return $(`<span><img src="${flagUrl}" style="width: 20px; height: 14px; margin-right: 8px;"> ${state.text}</span>`);
+    }
 
-  function formatCurrencyOption(state) {
-    if (!state.id) return state.text;
-    const flagUrl = $(state.element).data('flag');
-    return $(`<span><img src="${flagUrl}" style="width: 20px; height: 14px; margin-right: 8px;"> ${state.text}</span>`);
-  }
+    $(document).ready(function () {
+      const $currencySelect = $('#currency');
+      $currencySelect.empty();
 
-  $(document).ready(function () {
-    // Populate currency options before initializing Select2
-    const $currencySelect = $('#currency');
-    $currencySelect.empty();
-
-    currencies.forEach(currency => {
-      const isSelected = currency.code === currentCurrency;
-      const option = new Option(`${currency.name} (${currency.code})`, currency.code, isSelected, isSelected);
-      $(option).attr('data-flag', `https://flagcdn.com/24x18/${currency.country}.png`);
-      $currencySelect.append(option);
-    });
-
-    $currencySelect.select2({
-      templateResult: formatCurrencyOption,
-      templateSelection: formatCurrencyOption,
-      minimumResultsForSearch: -1
-    });
-
-$(document).ready(() => {
-  // CURRENCY FORM SUBMIT
-  $('#currency-form').on('submit', function (e) {
-    e.preventDefault();
-
-    const selectedCurrency = $('#currency').val();
-    console.log("Selected:", selectedCurrency); // Debug output
-
-    fetch('/settings/currency', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ currency: selectedCurrency })
-    })
-    .then(res => {
-      if (!res.ok) throw new Error("Network response was not ok");
-      return res.json();
-    })
-    .then(data => {
-      console.log("Currency response:", data);
-      Toastify({
-        text: "✅ Currency preference saved",
-        duration: 3000,
-        gravity: "top",
-        position: "right",
-        backgroundColor: "#4CAF50"
-      }).showToast();
-    })
-    .catch(err => {
-      console.error("Currency save failed", err);
-      Toastify({
-        text: "❌ Failed to save currency",
-        duration: 3000,
-        gravity: "top",
-        position: "right",
-        backgroundColor: "#f44336"
-      }).showToast();
-    });
-  });
-});
-
-    // Profile form
-    $('#profile-form').on('submit', function (e) {
-      e.preventDefault();
-      const formData = new FormData(this);
-      fetch('/settings/profile', {
-        method: 'POST',
-        body: formData
-      })
-      .then(res => res.json())
-      .then(data => {
-        Toastify({
-          text: data.message || '✅ Profile updated!',
-          duration: 3000,
-          gravity: 'top',
-          position: 'right',
-          backgroundColor: "#4CAF50"
-        }).showToast();
-        if (data.logo_url) {
-          $('#logo-preview').attr('src', data.logo_url);
-        }
-      })
-      .catch(err => {
-        Toastify({
-          text: "❌ Profile update failed",
-          duration: 3000,
-          gravity: 'top',
-          position: 'right',
-          backgroundColor: "#f44336"
-        }).showToast();
+      currencies.forEach(currency => {
+        const isSelected = currency.code === currentCurrency;
+        const option = new Option(`${currency.name} (${currency.code})`, currency.code, isSelected, isSelected);
+        $(option).attr('data-flag', `https://flagcdn.com/24x18/${currency.country}.png`);
+        $currencySelect.append(option);
       });
+
+      $currencySelect.select2({
+        templateResult: formatCurrencyOption,
+        templateSelection: formatCurrencyOption,
+        minimumResultsForSearch: -1
+      });
+
+      $('#currency-form').on('submit', function (e) {
+        e.preventDefault();
+        const selectedCurrency = $('#currency').val();
+
+        fetch('/settings/currency', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currency: selectedCurrency })
+        })
+        .then(res => res.json())
+        .then(data => {
+          Toastify({
+            text: "✅ Currency preference saved",
+            duration: 3000,
+            gravity: "top",
+            position: "right",
+            backgroundColor: "#4CAF50"
+          }).showToast();
+        })
+        .catch(() => {
+          Toastify({
+            text: "❌ Failed to save currency",
+            duration: 3000,
+            gravity: "top",
+            position: "right",
+            backgroundColor: "#f44336"
+          }).showToast();
+        });
+      });
+
+      $('#profile-form').on('submit', function (e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        fetch('/settings/profile', {
+          method: 'POST',
+          body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+          Toastify({
+            text: data.message || '✅ Profile updated!',
+            duration: 3000,
+            gravity: 'top',
+            position: 'right',
+            backgroundColor: "#4CAF50"
+          }).showToast();
+        })
+        .catch(() => {
+          Toastify({
+            text: "❌ Profile update failed",
+            duration: 3000,
+            gravity: 'top',
+            position: 'right',
+            backgroundColor: "#f44336"
+          }).showToast();
+        });
+      });
+
+      // Logo preview
+      $('#logo').on('change', function () {
+        const file = this.files[0];
+        const previewContainer = $('#logo-preview-container');
+        previewContainer.empty();
+
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            const img = $('<img>', { src: e.target.result });
+            previewContainer.append(img);
+            setTimeout(() => {
+              img.fadeOut(500, function () {
+                $(this).remove();
+              });
+            }, 5000);
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+
+      // Password validation
+      const password = document.getElementById('password');
+      const confirm = document.getElementById('confirm_password');
+      const matchStatus = document.getElementById('match-status');
+
+      const length = document.getElementById('length');
+      const uppercase = document.getElementById('uppercase');
+      const number = document.getElementById('number');
+      const special = document.getElementById('special');
+
+      function validatePasswordStrength(value) {
+        length.className = value.length >= 8 ? 'valid' : 'invalid';
+        length.textContent = (value.length >= 8 ? '✅' : '❌') + ' At least 8 characters';
+
+        uppercase.className = /[A-Z]/.test(value) ? 'valid' : 'invalid';
+        uppercase.textContent = (/[A-Z]/.test(value) ? '✅' : '❌') + ' One uppercase letter';
+
+        number.className = /\d/.test(value) ? 'valid' : 'invalid';
+        number.textContent = (/\d/.test(value) ? '✅' : '❌') + ' One number';
+
+        special.className = /[!@#$%^&*(),.?":{}|<>]/.test(value) ? 'valid' : 'invalid';
+        special.textContent = (/[!@#$%^&*(),.?":{}|<>]/.test(value) ? '✅' : '❌') + ' One special character';
+      }
+
+      function checkMatch() {
+        if (confirm.value === password.value && password.value !== "") {
+          matchStatus.textContent = '✅ Passwords match';
+          matchStatus.style.color = 'green';
+        } else {
+          matchStatus.textContent = '❌ Passwords do not match';
+          matchStatus.style.color = 'red';
+        }
+      }
+
+      password.addEventListener('input', () => {
+        validatePasswordStrength(password.value);
+        checkMatch();
+      });
+
+      confirm.addEventListener('input', checkMatch);
     });
-  });
-</script>
+  </script>
 </body>
+</html>

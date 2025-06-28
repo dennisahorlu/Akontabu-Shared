@@ -9,6 +9,8 @@
     <link rel="icon" href="{{url_for('static', filename='images/AKONTABU.jpg')}}" type="image/x-icon">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+
 
     </style>
 </head>
@@ -32,14 +34,14 @@
 
     <div class="dashboard-container">
         <div class="nav-bar">
-            <div class="nav-links">              
-                <a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a>
-                <a href="{{ url_for('sales') }}" class="nav-link">Sales</a>
-                <a href="{{ url_for('inventory') }}" class="nav-link">Inventory</a>
-                <a href="{{ url_for('payments') }}" class="nav-link">Payments</a>
-                <a href="{{ url_for('reports') }}" class="nav-link">Reports</a>
-                <a href="{{ url_for('settings') }}" class="nav-link">Settings</a>
-                <a href="{{ url_for('logout') }}" class="nav-link" style="color:red;">Logout</a>
+            <div class="nav-links">
+              <a href="{{ url_for('dashboard') }}" class="nav-link"><i class="bi bi-speedometer2"></i> Dashboard</a>
+              <a href="{{ url_for('sales') }}" class="nav-link"><i class="bi bi-cart-check"></i> Sales</a>
+              <a href="{{ url_for('inventory') }}" class="nav-link"><i class="bi bi-box-seam"></i> Inventory</a>
+              <a href="{{ url_for('payments') }}" class="nav-link"><i class="bi bi-cash-stack"></i> Payments</a>
+              <a href="{{ url_for('reports') }}" class="nav-link"><i class="bi bi-bar-chart-line"></i> Reports</a>
+              <a href="{{ url_for('settings') }}" class="nav-link"><i class="bi bi-gear"></i> Settings</a>
+              <a href="{{ url_for('logout') }}" class="nav-link" style="color:red;"><i class="bi bi-box-arrow-right"></i> Logout</a>
             </div>
         </div>
 
@@ -84,6 +86,31 @@
             </tbody>
         </table>
     </div>
+    {% if pagination %}
+      <div class="pagination" style="text-align: center; margin-top: 20px;">
+        {% if pagination.pages > 1 %}
+          {% if pagination.has_prev %}
+            <a href="{{ url_for('dashboard', page=pagination.prev_num) }}">« Prev</a>
+          {% endif %}
+
+          {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=1) %}
+            {% if p %}
+              {% if p == pagination.page %}
+                <strong>{{ p }}</strong>
+              {% else %}
+                <a href="{{ url_for('dashboard', page=p) }}">{{ p }}</a>
+              {% endif %}
+            {% else %}
+              …
+            {% endif %}
+          {% endfor %}
+
+          {% if pagination.has_next %}
+            <a href="{{ url_for('dashboard', page=pagination.next_num) }}">Next »</a>
+          {% endif %}
+        {% endif %}
+    </div>
+  {% endif %}
 </body>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
