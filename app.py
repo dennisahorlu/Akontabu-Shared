@@ -322,6 +322,8 @@ def payments():
 @app.route('/reports')
 @login_required
 def reports():
+    sales_data = Sale.query.all()
+    payments_data = Payment.query.all()
     start = request.args.get('start')
     end = request.args.get('end')
 
@@ -370,6 +372,8 @@ def reports():
 
     return render_template(
         'reports.html',
+        sales_data=sales_data,
+        payments_data=payments_data,
         sales_by_product=sales_by_product,
         payments_by_type=payments_by_type,
         inventory_data=inventory_data,

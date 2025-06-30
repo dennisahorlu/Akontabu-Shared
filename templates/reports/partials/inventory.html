@@ -1,8 +1,28 @@
+<style>
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    table-layout: fixed;
+}
+
+th, td {
+    border: 1px solid #ccc;
+    padding: 12px 10px;
+    text-align: left;
+    word-wrap: break-word;
+}
+
+thead {
+    background-color: #f5f5f5;
+    font-weight: bold;
+}
+</style>
 <h3>Inventory</h3>
 <table>
-    <thead><tr><th>Product</th><th>Qty</th><th>Cost</th><th>Selling</th></tr></thead>
+    <thead><tr><th>Product</th><th>Quantity in Stock</th><th>Cost Price</th><th>Selling Price</th></tr></thead>
     <tbody>
-        {% for p in inventory %}
+        {% for p in inventory_data %}
         <tr>
             <td>{{ p.name }}</td>
             <td>{{ p.quantity }}</td>
