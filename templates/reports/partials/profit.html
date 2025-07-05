@@ -1,0 +1,23 @@
+<div class="report-header">
+    <div class="report-info">
+        <h2>{{ report_title or "Income and Expenditure Report" }}</h2>
+        <p><strong>Business:</strong> {{ current_user.business_name or "AKONTABU" }}</p>
+        {% if start and end %}
+        <p><strong>Period:</strong> {{ start }} to {{ end }}</p>
+        {% else %}
+        <p><strong>Period:</strong> All Time</p>
+        {% endif %}
+        <p><strong>Date Generated:</strong> {{ now.strftime('%d-%m-%Y') }}</p>
+    </div>
+
+    {% if current_user.logo_path %}
+    <img src="{{ url_for('static', filename=current_user.logo_path) }}" class="logo">
+    {% endif %}
+</div>
+
+<div class="tab-content active" id="profit">
+    <h3>Profit Summary</h3>
+    <p><strong>Total Revenue:</strong> {{ total_revenue | round(2) | currency }}</p>
+    <p><strong>Total Payments:</strong> {{ total_payments | round(2) | currency }}</p>
+    <p><strong>Net Profit:</strong> {{ profit | round(2) | currency }}</p>
+</div>

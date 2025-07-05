@@ -20,6 +20,9 @@ from xhtml2pdf import pisa
 import openpyxl
 from openpyxl.utils import get_column_letter
 from collections import defaultdict
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, Border, Side
+from openpyxl.drawing.image import Image as ExcelImage
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
@@ -123,12 +126,19 @@ def login():
 @login_required
 def dashboard():
     product_costs = db.session.query(
-        func.sum(Payment.total_cost)
-    ).filter(Payment.payment_type == 'product').scalar() or 0
+    func.sum(Payment.total_cost)
+    ).filter(
+        Payment.payment_type == 'product',
+        Payment.user_id == current_user.id
+    ).scalar() or 0
 
     other_costs = db.session.query(
         func.sum(Payment.amount)
-    ).filter(Payment.payment_type != 'product').scalar() or 0
+    ).filter(
+        Payment.payment_type != 'product',
+        Payment.user_id == current_user.id
+    ).scalar() or 0
+
 
     total_sales = db.session.query(
         func.sum(Sale.quantity * Sale.price)
@@ -317,15 +327,12 @@ def payments():
         current_date=date.today().strftime('%Y-%m-%d')
     )
 
-
-
 @app.route('/reports')
 @login_required
 def reports():
-    sales_data = Sale.query.all()
-    payments_data = Payment.query.all()
     start = request.args.get('start')
     end = request.args.get('end')
+    tab = request.args.get('tab', 'profit')  # <-- Track which tab is active
 
     def date_filter(query, model):
         if start and end:
@@ -337,143 +344,437 @@ def reports():
                 flash("Invalid date range")
         return query
 
-    # Filtered queries
-    payments = date_filter(Payment.query.filter_by(user_id=current_user.id), Payment).all()
     sales = date_filter(Sale.query.filter_by(user_id=current_user.id), Sale).all()
+    payments = date_filter(Payment.query.filter_by(user_id=current_user.id), Payment).all()
     inventory = Product.query.filter_by(user_id=current_user.id).all()
 
-    # Grouped Sales
-    sales_by_product = defaultdict(lambda: {'quantity': 0, 'revenue': 0})
-    for s in sales:
-        pname = s.product.name if s.product else 'Unknown'
-        sales_by_product[pname]['quantity'] += s.quantity
-        sales_by_product[pname]['revenue'] += s.price * s.quantity
-
-    # Grouped Payments
-    payments_by_type = defaultdict(float)
-    for p in payments:
-        key = f"{p.payment_type} - {p.description or 'Other'}"
-        payments_by_type[key] += p.amount
-
-    # Inventory Summary
-    inventory_data = []
-    for p in inventory:
-        inventory_data.append({
-            'name': p.name,
-            'quantity': p.quantity,
-            'cost_price': p.cost_price,
-            'selling_price': p.selling_price,
-            'value': p.cost_price * p.quantity
-        })
-
-    total_revenue = sum(val['revenue'] for val in sales_by_product.values())
-    total_payments = sum(payments_by_type.values())
+    total_revenue = sum(s.price * s.quantity for s in sales)
+    total_payments = sum(p.amount for p in payments)
+    sales_total = sum(s.quantity * s.price for s in sales)
+    payments_total = sum(p.amount for p in payments)
     profit = total_revenue - total_payments
+
+    inventory_data = [{
+        'name': p.name,
+        'quantity': p.quantity,
+        'cost_price': p.cost_price,
+        'selling_price': p.selling_price,
+        'value': p.cost_price * p.quantity
+    } for p in inventory]
 
     return render_template(
         'reports.html',
-        sales_data=sales_data,
-        payments_data=payments_data,
-        sales_by_product=sales_by_product,
-        payments_by_type=payments_by_type,
+        sales=sales,
+        payments=payments,
         inventory_data=inventory_data,
+        total_revenue=total_revenue,
+        total_payments=total_payments,
+        payments_total=payments_total,
+        sales_total=sales_total,
+        profit=profit,
+        start=start,
+        end=end,
+        now=datetime.now(),
+        tab=tab  # <-- Pass to template
+    )
+
+
+@app.route('/reports/sales')
+@login_required
+def sales_report():
+    start = request.args.get('start')
+    end = request.args.get('end')
+
+    def date_filter(query, model):
+        if start and end:
+            try:
+                s_date = datetime.strptime(start, '%Y-%m-%d')
+                e_date = datetime.strptime(end, '%Y-%m-%d')
+                return query.filter(model.date.between(s_date, e_date))
+            except ValueError:
+                flash("Invalid date range", "error")
+        return query
+
+    # Filtered sales
+    sales = date_filter(Sale.query.filter_by(user_id=current_user.id), Sale).order_by(Sale.date.asc()).all()
+
+    # Total sales = sum of quantity × price
+    sales_total = sum(s.quantity * s.price for s in sales)
+
+    return render_template(
+        'reports/partials/sales.html',
+        report_title="Sales Report",
+        sales=sales,
+        sales_total=sales_total,
+        start=start,
+        end=end,
+        now=datetime.now()
+    )
+
+@app.route('/reports/payments')
+@login_required
+def payment_report():
+    start = request.args.get('start')
+    end = request.args.get('end')
+    product_id = request.args.get('product')
+
+    query = Payment.query.filter_by(user_id=current_user.id)
+
+    if start and end:
+        try:
+            s_date = datetime.strptime(start, '%Y-%m-%d')
+            e_date = datetime.strptime(end, '%Y-%m-%d')
+            query = query.filter(Payment.date.between(s_date, e_date))
+        except ValueError:
+            flash("Invalid date format. Use YYYY-MM-DD.")
+
+    if product_id:
+        query = query.filter_by(product_id=product_id)
+
+    payments = query.order_by(Payment.date.desc()).all()
+    products = Product.query.filter_by(user_id=current_user.id).all()
+
+    total_amount = sum(p.amount for p in payments)
+
+    return render_template(
+        'partials/payments.html',
+        payments=payments,
+        all_products=products,
+        start=start,
+        end=end,
+        payments_total=total_amount
+    )
+
+
+@app.route('/export/sales/excel')
+@login_required
+def export_sales_excel():
+    start = request.args.get('start')
+    end = request.args.get('end')
+
+    def date_filter(query, model):
+        if start and end:
+            try:
+                s_date = datetime.strptime(start, '%Y-%m-%d')
+                e_date = datetime.strptime(end, '%Y-%m-%d')
+                return query.filter(model.date.between(s_date, e_date))
+            except ValueError:
+                flash("Invalid date range", "error")
+        return query
+
+    sales = date_filter(Sale.query.filter_by(user_id=current_user.id), Sale).order_by(Sale.date.asc()).all()
+    grand_total = sum(s.quantity * s.price for s in sales)
+
+    # Create Excel workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Sales Report"
+
+    # Add logo from upload folder
+    from openpyxl.drawing.image import Image as ExcelImage
+    import os
+
+    logo_filename = current_user.logo_path or 'default_logo.png'
+    logo_full_path = os.path.join(app.config['UPLOAD_FOLDER'], logo_filename)
+
+    if os.path.exists(logo_full_path):
+        img = ExcelImage(logo_full_path)
+        img.height = 80
+        img.width = 160
+        ws.add_image(img, 'A1')
+
+    # Header Info
+    ws.merge_cells('A1:F1')
+    ws['A1'] = current_user.business_name or "AKONTABU"
+    ws['A1'].font = Font(size=14, bold=True)
+    ws['A1'].alignment = Alignment(horizontal="center")
+
+    ws.merge_cells('A2:F2')
+    ws['A2'] = "Sales Report"
+    ws['A2'].font = Font(size=12, bold=True)
+    ws['A2'].alignment = Alignment(horizontal="center")
+
+    ws.merge_cells('A3:F3')
+    period_text = f"Period: {start} to {end}" if start and end else "Period: All Time"
+    ws['A3'] = period_text
+    ws['A3'].font = Font(size=10)
+    ws['A3'].alignment = Alignment(horizontal="center")
+
+    ws.merge_cells('A4:F4')
+    ws['A4'] = f"Date Generated: {datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')}"
+    ws['A4'].alignment = Alignment(horizontal="center")
+
+    # Table Header
+    headers = ['Date & Time', 'Product', 'Customer', 'Quantity', 'Price', 'Total']
+    header_row = 6
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=header_row, column=col_num, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center")
+        cell.border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+
+    # Table Rows
+    for idx, s in enumerate(sales, start=header_row + 1):
+        ws.cell(row=idx, column=1, value=s.date.strftime('%Y-%m-%d %I:%M:%S %p'))
+        ws.cell(row=idx, column=2, value=s.product.name)
+        ws.cell(row=idx, column=3, value=getattr(s, 'customer', 'N/A') if isinstance(s.customer, str) else (s.customer.name if s.customer else 'N/A'))
+        ws.cell(row=idx, column=4, value=s.quantity)
+        ws.cell(row=idx, column=5, value=s.price)
+        ws.cell(row=idx, column=6, value=s.quantity * s.price)
+
+    # Format currency and borders
+    currency_format = '"GHS" #,##0.00'
+    last_data_row = ws.max_row
+
+    for row in ws.iter_rows(min_row=header_row + 1, max_row=last_data_row):
+        for i, cell in enumerate(row):
+            cell.border = Border(
+                left=Side(style='thin'),
+                right=Side(style='thin'),
+                top=Side(style='thin'),
+                bottom=Side(style='thin')
+            )
+            if i in [4, 5]:  # Price or Total
+                cell.number_format = currency_format
+                cell.alignment = Alignment(horizontal="right")
+
+    # Grand Total
+    total_row = last_data_row + 2
+    ws.cell(row=total_row, column=4, value="Grand Total:").font = Font(bold=True)
+    ws.cell(row=total_row, column=6, value=grand_total).font = Font(bold=True)
+    ws.cell(row=total_row, column=6).number_format = currency_format
+    ws.cell(row=total_row, column=6).alignment = Alignment(horizontal="right")
+
+    # Export as file
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return send_file(output, download_name='sales_report.xlsx', as_attachment=True)
+
+@app.route('/export/sales/pdf')
+@login_required
+def export_sales_pdf():
+    start = request.args.get("start")
+    end = request.args.get("end")
+
+    def apply_date_filter(query):
+        if start and end:
+            try:
+                start_date = datetime.strptime(start, "%Y-%m-%d")
+                end_date = datetime.strptime(end, "%Y-%m-%d")
+                return query.filter(Sale.date.between(start_date, end_date))
+            except ValueError:
+                pass
+        return query
+
+    sales = apply_date_filter(Sale.query.filter_by(user_id=current_user.id)).order_by(Sale.date.asc()).all()
+    sales_total = sum(s.quantity * s.price for s in sales)
+    total_revenue = sales_total
+    total_payments = sum(p.amount for p in Payment.query.filter_by(user_id=current_user.id).all())
+    profit = total_revenue - total_payments
+
+    # Render your partial template or full report
+    html_content = render_template(
+        'reports/partials/sales.html',  # Or 'reports/sales_pdf.html' if you want to create a special version
+        sales=sales,
+        sales_total=sales_total,
         total_revenue=total_revenue,
         total_payments=total_payments,
         profit=profit,
         start=start,
-        end=end
+        end=end,
+        now=datetime.now(),
+        current_user=current_user
     )
 
-@app.route('/export/<report_type>/excel')
+    pdf_file = BytesIO()
+    HTML(string=html_content, base_url=request.host_url).write_pdf(pdf_file)
+    pdf_file.seek(0)
+
+    return send_file(
+        pdf_file,
+        mimetype='application/pdf',
+        download_name='sales_report.pdf',
+        as_attachment=True
+    )
+
+@app.route('/reports/payments/download/excel')
 @login_required
-def export_excel(report_type):
+def download_payments_excel():
     start = request.args.get('start')
     end = request.args.get('end')
+    payment_type = request.args.get('payment_type')
+    product_name = request.args.get('product_name')
 
     def date_filter(query, model):
         if start and end:
             try:
-                start_date = datetime.strptime(start, '%Y-%m-%d')
-                end_date = datetime.strptime(end, '%Y-%m-%d')
-                return query.filter(model.date.between(start_date, end_date))
+                s_date = datetime.strptime(start, '%Y-%m-%d')
+                e_date = datetime.strptime(end, '%Y-%m-%d')
+                return query.filter(model.date.between(s_date, e_date))
             except ValueError:
-                pass
+                flash("Invalid date range")
         return query
 
-    if report_type == 'sales':
-        query = Sale.query.filter_by(user_id=current_user.id)
-        sales = date_filter(query, Sale).all()
-        rows = [{'Date': s.date.strftime('%Y-%m-%d'), 'Product': s.product.name, 'Quantity': s.quantity, 'Price': s.price, 'Total': s.quantity * s.price} for s in sales]
+    query = Payment.query.filter_by(user_id=current_user.id)
+    query = date_filter(query, Payment)
 
-    elif report_type == 'payments':
-        query = Payment.query.filter_by(user_id=current_user.id)
-        payments = date_filter(query, Payment).all()
-        rows = [{'Date': p.date.strftime('%Y-%m-%d'), 'Type': p.payment_type, 'Description': p.description, 'Amount': p.amount} for p in payments]
+    if payment_type:
+        query = query.filter(Payment.payment_type == payment_type)
+    if product_name:
+        query = query.join(Product).filter(Product.name.ilike(f"%{product_name}%"))
 
-    elif report_type == 'inventory':
-        products = Product.query.filter_by(user_id=current_user.id).all()
-        rows = [{'Product': p.name, 'Quantity': p.quantity, 'Cost Price': p.cost_price, 'Selling Price': p.selling_price} for p in products]
+    payments = query.order_by(Payment.date.asc()).all()
+    payments_total = sum(p.amount for p in payments)
 
-    elif report_type == 'profit':
-        payments = date_filter(Payment.query.filter_by(user_id=current_user.id), Payment).all()
-        sales = date_filter(Sale.query.filter_by(user_id=current_user.id), Sale).all()
-        rows = [{
-            'Total Revenue': sum(s.price * s.quantity for s in sales),
-            'Total Payments': sum(p.amount for p in payments),
-            'Profit': sum(s.price * s.quantity for s in sales) - sum(p.amount for p in payments)
-        }]
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Payments"
 
-    else:
-        return "Invalid report type", 400
+    # Add logo
+    logo_filename = current_user.logo_path or 'default_logo.png'
+    logo_path = os.path.join(app.config['UPLOAD_FOLDER'], logo_filename)
+    if os.path.exists(logo_path):
+        try:
+            img = ExcelImage(logo_path)
+            img.height = 80
+            img.width = 160
+            ws.add_image(img, 'A1')
+        except Exception as e:
+            print("Image error:", e)
 
-    df = pd.DataFrame(rows)
-    output = BytesIO()
-    df.to_excel(output, index=False, engine='openpyxl')
-    output.seek(0)
+    # Header info
+    ws.merge_cells('A1:E1')
+    ws['A1'] = current_user.business_name or "AKONTABU"
+    ws['A1'].font = Font(size=14, bold=True)
+    ws['A1'].alignment = Alignment(horizontal="center")
 
-    return send_file(output, download_name=f'{report_type}_report.xlsx', as_attachment=True)
+    ws.merge_cells('A2:E2')
+    ws['A2'] = "Payment Report"
+    ws['A2'].font = Font(size=12, bold=True)
+    ws['A2'].alignment = Alignment(horizontal="center")
 
+    ws.merge_cells('A3:E3')
+    period_text = f"Period: {start} to {end}" if start and end else "Period: All Time"
+    ws['A3'] = period_text
+    ws['A3'].alignment = Alignment(horizontal="center")
 
-@app.route('/export/<report_type>/pdf')
-@login_required
-def export_pdf(report_type):
-    start = request.args.get('start')
-    end = request.args.get('end')
+    ws.merge_cells('A4:E4')
+    ws['A4'] = f"Generated on: {datetime.now().strftime('%d-%m-%Y')}"
+    ws['A4'].alignment = Alignment(horizontal="center")
 
-    def date_filter(query, model):
-        if start and end:
-            try:
-                start_date = datetime.strptime(start, '%Y-%m-%d')
-                end_date = datetime.strptime(end, '%Y-%m-%d')
-                return query.filter(model.date.between(start_date, end_date))
-            except ValueError:
-                pass
-        return query
+    # Table headers
+    headers = ['Date', 'Type', 'Description', 'Amount (GHS)']
+    header_row = 6
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=header_row, column=col, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal='center')
+        cell.border = Border(
+            left=Side(style='thin'), right=Side(style='thin'),
+            top=Side(style='thin'), bottom=Side(style='thin')
+        )
 
-    sales = date_filter(Sale.query.filter_by(user_id=current_user.id), Sale).all()
-    payments = date_filter(Payment.query.filter_by(user_id=current_user.id), Payment).all()
-    inventory = Product.query.filter_by(user_id=current_user.id).all()
+    # Table data
+    for idx, p in enumerate(payments, start=header_row + 1):
+        ws.cell(row=idx, column=1, value=p.date.strftime('%d-%m-%Y'))
+        ws.cell(row=idx, column=2, value=p.product.name if p.product else p.payment_type)
+        ws.cell(row=idx, column=3, value=p.description or '')
+        amount_cell = ws.cell(row=idx, column=4, value=p.amount)
+        amount_cell.number_format = '"GHS" #,##0.00'
+        amount_cell.alignment = Alignment(horizontal='right')
 
-    context = {
-        'sales': sales,
-        'payments': payments,
-        'inventory': inventory,
+    # Grand Total row
+    total_row = ws.max_row + 2
+    ws.cell(row=total_row, column=3, value="Grand Total:").font = Font(bold=True)
+    total_cell = ws.cell(row=total_row, column=4, value=payments_total)
+    total_cell.font = Font(bold=True)
+    total_cell.number_format = '"GHS" #,##0.00'
+    total_cell.alignment = Alignment(horizontal='right')
+
+    # Report Info sheet (optional)
+    info_data = {
+        'Business Name': [current_user.business_name or 'AKONTABU'],
+        'Report Type': ['Payment Report'],
+        'Start Date': [start or 'All Time'],
+        'End Date': [end or 'All Time'],
+        'Payment Type': [payment_type or 'All'],
+        'Product Name': [product_name or 'All'],
+        'Generated On': [datetime.now().strftime('%d-%m-%Y')],
+        'Total Payments': [f"GHS {round(payments_total, 2)}"]
     }
+    info_df = pd.DataFrame(info_data)
+    info_ws = wb.create_sheet("Report Info")
+    for r, (label, value) in enumerate(info_data.items(), start=1):
+        info_ws.cell(row=r, column=1, value=label).font = Font(bold=True)
+        info_ws.cell(row=r, column=2, value=value[0])
 
-    if report_type == 'profit':
-        context['total_revenue'] = sum(s.price * s.quantity for s in sales)
-        context['total_payments'] = sum(p.amount for p in payments)
-        context['profit'] = context['total_revenue'] - context['total_payments']
+    # Export to file
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return send_file(output, download_name='payment_report.xlsx', as_attachment=True)
 
-    env = Environment(loader=FileSystemLoader('templates'))
-    template = env.get_template(f'reports/partials/{report_type}.html')
-    html_out = template.render(**context)
-    pdf = HTML(string=html_out).write_pdf()
+@app.route('/reports/payments/download/pdf')
+@login_required
+def export_payment_pdf():
+    start = request.args.get('start')
+    end = request.args.get('end')
+    payment_type = request.args.get('payment_type')
+    product_name = request.args.get('product_name')
 
-    response = make_response(pdf)
-    response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = f'attachment; filename={report_type}_report.pdf'
-    return response
+    def date_filter(query):
+        if start and end:
+            try:
+                s_date = datetime.strptime(start, '%Y-%m-%d')
+                e_date = datetime.strptime(end, '%Y-%m-%d')
+                return query.filter(Payment.date.between(s_date, e_date))
+            except ValueError:
+                pass
+        return query
+
+    # Apply filters
+    query = Payment.query.filter_by(user_id=current_user.id)
+    query = date_filter(query)
+
+    if payment_type:
+        query = query.filter(Payment.payment_type == payment_type)
+    if product_name:
+        query = query.join(Product).filter(Product.name.ilike(f"%{product_name}%"))
+
+    payments = query.order_by(Payment.date.asc()).all()
+    payments_total = sum(p.amount for p in payments)
+    
+
+    # Render the HTML
+    html_content = render_template(
+        'reports/partials/payments.html',
+        payments=payments,
+        payments_total=payments_total,
+        start=start,
+        end=end,
+        now=datetime.now(),
+        report_title="Payment Report",
+        current_user=current_user  # required for business name and logo
+    )
+
+    # Generate PDF
+    pdf_file = BytesIO()
+    HTML(string=html_content, base_url=request.host_url).write_pdf(pdf_file)
+    pdf_file.seek(0)
+
+    return send_file(
+        pdf_file,
+        mimetype='application/pdf',
+        download_name='payment_report.pdf',
+        as_attachment=True
+    )
 
 @app.route('/settings')
 @login_required

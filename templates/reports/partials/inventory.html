@@ -18,6 +18,24 @@ thead {
     font-weight: bold;
 }
 </style>
+
+<div class="report-header">
+    <div class="report-info">
+        <h2>{{ report_title or "Inventory Report" }}</h2>
+        <p><strong>Business:</strong> {{ current_user.business_name or "AKONTABU" }}</p>
+        {% if start and end %}
+        <p><strong>Period:</strong> {{ start }} to {{ end }}</p>
+        {% else %}
+        <p><strong>Period:</strong> All Time</p>
+        {% endif %}
+        <p><strong>Date Generated:</strong> {{ now.strftime('%d-%m-%Y') }}</p>
+    </div>
+
+    {% if current_user.logo_path %}
+    <img src="{{ url_for('static', filename=current_user.logo_path) }}" class="logo">
+    {% endif %}
+</div>
+
 <h3>Inventory</h3>
 <table>
     <thead><tr><th>Product</th><th>Quantity in Stock</th><th>Cost Price</th><th>Selling Price</th></tr></thead>

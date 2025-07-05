@@ -7,7 +7,6 @@ class Sale(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     quantity = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Float, nullable=False)  # Selling price at time of sale
-    # total_amount = db.Column(db.Float)  # Added for total sale amount
     profit = db.Column(db.Float)  # Calculated profit (price - cost_price) * quantity
     customer = db.Column(db.String(100))
     description = db.Column(db.String(200))

@@ -1,160 +1,120 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AKONTABU - Reports</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="icon" href="{{url_for('static', filename='images/AKONTABU.jpg')}}" type="image/x-icon">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-    <style>
-        .dashboard-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .nav-bar {
-            background: #fff;
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        .nav-links {
-            display: flex;
-            justify-content: space-around;
-        }
-        .nav-link {
-            text-decoration: none;
-            color: #333;
-            padding: 10px 20px;
-            border-radius: 5px;
-            transition: background 0.3s ease;
-        }
-        .nav-link:hover {
-            background: #f0f0f0;
-        }
-        .tabs { display: flex; margin-bottom: 20px; gap: 10px; }
-        .tab { padding: 10px 15px; background: #eee; cursor: pointer; border-radius: 5px; }
-        .tab.active { background: #4CAF50; color: white; }
-        .tab-content {
-    display: none;
-    background: #fff;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 1px 5px rgba(0,0,0,0.1);
-    margin-top: 10px;
-}
-.export-buttons {
-    margin-top: 10px;
-    margin-bottom: 10px;
-    font-size: 14px;
-}
-        .tab-content.active { display: block; }
-        
-    </style>
+  <meta charset="UTF-8">
+  <title>AKONTABU - Reports</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="icon" href="{{ url_for('static', filename='images/AKONTABU.jpg') }}" type="image/x-icon">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+  <style>
+    /* Styling (unchanged from yours) */
+    .dashboard-container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .nav-bar { background: #fff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .nav-links { display: flex; justify-content: space-around; }
+    .nav-link { text-decoration: none; color: #333; padding: 10px 20px; border-radius: 5px; transition: background 0.3s ease; }
+    .nav-link:hover { background: #f0f0f0; }
+    .container { background: #fff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .tabs { display: flex; gap: 10px; margin-bottom: 10px; }
+    .tab { padding: 10px 15px; background: #eee; cursor: pointer; border-radius: 5px; }
+    .tab.active { background: #4CAF50; color: white; }
+    .tab-content { display: none; margin-top: 10px; }
+    .tab-content.active { display: block; }
+    .export-buttons { margin: 10px 0; }
+  </style>
 </head>
 <body>
-    <span style="font-weight: bold; font-size: 30px; text-align: center;">
-                    {% if current_user.is_authenticated and current_user.business_name %}
-                                   Hi {{ current_user.business_name }},
-                    {% else %}
-                        AKONTABU
-                    {% endif %}
-  </span>
-    <div class="dashboard-container">
-        <div class="nav-bar">
-            <div class="nav-links">
-              <a href="{{ url_for('dashboard') }}" class="nav-link"><i class="bi bi-speedometer2"></i> Dashboard</a>
-              <a href="{{ url_for('sales') }}" class="nav-link"><i class="bi bi-cart-check"></i> Sales</a>
-              <a href="{{ url_for('inventory') }}" class="nav-link"><i class="bi bi-box-seam"></i> Inventory</a>
-              <a href="{{ url_for('payments') }}" class="nav-link"><i class="bi bi-cash-stack"></i> Payments</a>
-              <a href="{{ url_for('reports') }}" class="nav-link"><i class="bi bi-bar-chart-line"></i> Reports</a>
-              <a href="{{ url_for('settings') }}" class="nav-link"><i class="bi bi-gear"></i> Settings</a>
-              <a href="{{ url_for('logout') }}" class="nav-link" style="color:red;"><i class="bi bi-box-arrow-right"></i> Logout</a>
-            </div>
-        </div>
-        
+  <div class="dashboard-container">
+    <div class="nav-bar">
+      <div class="nav-links">
+        <a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a>
+        <a href="{{ url_for('sales') }}" class="nav-link">Sales</a>
+        <a href="{{ url_for('inventory') }}" class="nav-link">Inventory</a>
+        <a href="{{ url_for('payments') }}" class="nav-link">Payments</a>
+        <a href="{{ url_for('reports') }}" class="nav-link">Reports</a>
+        <a href="{{ url_for('settings') }}" class="nav-link">Settings</a>
+        <a href="{{ url_for('logout') }}" class="nav-link" style="color:red;">Logout</a>
+      </div>
+    </div>
+
         <h1>Reports</h1>
-        <form method="GET" action="{{ url_for('reports') }}" style="margin-bottom: 20px;">
-            <label for="start">From:</label>
-            <input type="date" name="start" id="start" value="{{ start or '' }}" required>
 
-            <label for="end">To:</label>
-            <input type="date" name="end" id="end" value="{{ end or '' }}" required>
-
-            <button type="submit">🔍 Filter</button>
-            {% if start and end %}
-                <a href="{{ url_for('reports') }}">🔄 Clear Filter</a>
-            {% endif %}
-        </form>
-
-    </div>
+    <!-- 🔽 TABS -->
     <div class="tabs">
-        <div class="tab active" data-tab="profit">Profit</div>
-        <div class="tab" data-tab="inventory">Inventory</div>
-        <div class="tab" data-tab="sales">Sales</div>
-        <div class="tab" data-tab="payments">Payments</div>
+      <div class="tab" data-tab="profit">Profit</div>
+      <div class="tab" data-tab="inventory">Inventory</div>
+      <div class="tab" data-tab="sales">Sales</div>
+      <div class="tab" data-tab="payments">Payments</div>
     </div>
 
-    <div class="export-buttons">
-        <a id="excel-btn" href="/export/profit/excel">📥 Excel</a> |
-        <a id="pdf-btn" href="/export/profit/pdf">📄 PDF</a>
-    </div>
+    <!-- 🔽 FILTER FORM Shared by All Tabs -->
+    <form method="get" action="{{ url_for('reports') }}" class="row g-3 mb-3">
+      <input type="hidden" name="tab" id="tab-input" value="{{ tab or 'profit' }}">
+      <div>
+        <label>Start Date:</label>
+        <input type="date" name="start" value="{{ start }}">
+        <label>End Date:</label>
+        <input type="date" name="end" value="{{ end }}">
+        <button type="submit" class="btn btn-primary">Filter</button>
+      </div>
+    </form>
 
+    <!-- 🔽 EXPORT BUTTONS -->
+    <!-- <div class="export-buttons">
+      <a id="excel-btn" href="#">📥 Excel</a> |
+      <a id="pdf-btn" href="#">📄 PDF</a>
+    </div> -->
+
+    <!-- 🔽 TAB CONTENTS -->
     <div id="profit" class="tab-content active">
-        <h3>Profit Summary</h3>
-        <p><strong>Total Revenue:</strong> {{ total_revenue|round(2) | currency}}</p>
-        <p><strong>Total Payments:</strong> {{ total_payments|round(2) | currency }}</p>
-        <p><strong>Net Profit:</strong> {{ profit|round(2) | currency }}</p>
+        {% include 'reports/partials/profit.html' %}
     </div>
-
-    <div id="inventory" class="tab-content">
-        {% include 'reports/partials/inventory.html' %}
-    </div>
-    <div id="sales" class="tab-content">
-        {% include 'reports/partials/sales.html' %}
-    </div>
-    <div id="payments" class="tab-content">
-        {% include 'reports/partials/payments.html' %}
-    </div>
+    <div id="inventory" class="tab-content">{% include 'reports/partials/inventory.html' %}</div>
+    <div id="sales" class="tab-content">{% include 'reports/partials/sales.html' %}</div>
+    <div id="payments" class="tab-content">{% include 'reports/partials/payments.html' %}</div>
+  </div>
 
 <script>
-    const tabs = document.querySelectorAll('.tab');
-    const contents = document.querySelectorAll('.tab-content');
-    const excelBtn = document.getElementById('excel-btn');
-    const pdfBtn = document.getElementById('pdf-btn');
-    const startInput = document.getElementById('start');
-    const endInput = document.getElementById('end');
+  const tabs = document.querySelectorAll(".tab");
+  const contents = document.querySelectorAll(".tab-content");
+  const excelBtn = document.getElementById("excel-btn");
+  const pdfBtn = document.getElementById("pdf-btn");
+  const startInput = document.querySelector("input[name='start']");
+  const endInput = document.querySelector("input[name='end']");
+  const tabInput = document.getElementById("tab-input");
 
-    function updateExportLinks(type) {
-        const start = startInput?.value || '';
-        const end = endInput?.value || '';
-        const params = start && end ? `?start=${start}&end=${end}` : '';
-        excelBtn.href = `/export/${type}/excel${params}`;
-        pdfBtn.href = `/export/${type}/pdf${params}`;
-    }
+  function activateTab(name) {
+    tabs.forEach(tab => tab.classList.remove("active"));
+    contents.forEach(c => c.classList.remove("active"));
 
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            tabs.forEach(t => t.classList.remove('active'));
-            contents.forEach(c => c.classList.remove('active'));
+    document.querySelector(`.tab[data-tab="${name}"]`)?.classList.add("active");
+    document.getElementById(name)?.classList.add("active");
+    tabInput.value = name;
 
-            tab.classList.add('active');
-            document.getElementById(tab.dataset.tab).classList.add('active');
+    updateExportLinks(name);
+  }
 
-            updateExportLinks(tab.dataset.tab);
-        });
-    });
+  function updateExportLinks(tabName) {
+    const start = startInput.value;
+    const end = endInput.value;
+    let params = new URLSearchParams();
 
-    document.querySelector('form').addEventListener('submit', (e) => {
-        setTimeout(() => {
-            const activeTab = document.querySelector('.tab.active').dataset.tab;
-            updateExportLinks(activeTab);
-        }, 100);
-    });
+    if (start) params.append("start", start);
+    if (end) params.append("end", end);
+
+    const query = params.toString() ? `?${params.toString()}` : "";
+
+    excelBtn.href = `/export/${tabName}/excel${query}`;
+    pdfBtn.href = `/export/${tabName}/pdf${query}`;
+  }
+
+  tabs.forEach(tab => {
+    tab.addEventListener("click", () => activateTab(tab.dataset.tab));
+  });
+
+  // Initial setup from server
+  const currentTab = "{{ tab or 'profit' }}";
+  activateTab(currentTab);
 </script>
-
 </body>
 </html>

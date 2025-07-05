@@ -4,4 +4,5 @@ from .sale import Sale
 from .payment import Payment
 from extensions import db
 
+
 __all__ = ['User', 'Product', 'Sale', 'Payment', 'db']
