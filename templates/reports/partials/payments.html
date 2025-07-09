@@ -82,23 +82,30 @@ thead {
             <th>Date</th>
             <th>Product/Type</th>
             <th>Description</th>
-            <th>Amount (GHS)</th>
+            <th>Amount</th>
         </tr>
     </thead>
     <tbody>
         {% for p in payments %}
         <tr>
             <td>{{ p.date.strftime('%d-%m-%Y') }}</td>
-            <td>{{ p.product.name if p.product else p.payment_type }}</td>
+            <td>
+            {% if p.payment_type == 'Product' and p.product %}
+                Product: {{ p.product.name }}
+            {% else %}
+                {{ p.payment_type }}
+            {% endif %}
+            </td>
+
             <td>{{ p.description or "—" }}</td>
-            <td>{{ "%.2f"|format(p.amount) }}</td>
+            <td>{{ p.amount| currency }}</td>
         </tr>
         {% endfor %}
     </tbody>
     <tfoot>
         <tr>
             <th colspan="3" style="text-align:right;">Total Amount:</th>
-            <th>{{ "%.2f"|format(payments_total) }}</th>
+            <th>{{payments_total | currency }}</th>
         </tr>
     </tfoot>
 </table>

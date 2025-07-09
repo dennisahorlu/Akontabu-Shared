@@ -15,9 +15,97 @@
     {% endif %}
 </div>
 
-<div class="tab-content active" id="profit">
-    <h3>Profit Summary</h3>
-    <p><strong>Total Revenue:</strong> {{ total_revenue | round(2) | currency }}</p>
-    <p><strong>Total Payments:</strong> {{ total_payments | round(2) | currency }}</p>
-    <p><strong>Net Profit:</strong> {{ profit | round(2) | currency }}</p>
-</div>
+<h3>INCOME</h3>
+
+<p><strong>Sales</strong></p>
+<table style="width:100%; border-collapse: collapse;">
+    <tbody>
+        {% for item in sales_breakdown %}
+        <tr>
+            <td>{{ item.product }}</td>
+            <td style="text-align: right;">{{ item.total | currency }}</td>
+        </tr>
+        {% endfor %}
+        <tr>
+            <td><strong>Subtotal – Sales</strong></td>
+            <td style="text-align: right;"><strong>{{ total_sales | currency }}</strong></td>
+        </tr>
+    </tbody>
+</table>
+
+<p><strong>Opening Stock</strong></p>
+<table style="width:100%; border-collapse: collapse;">
+    <tbody>
+        {% for item in opening_stock %}
+        <tr>
+            <td>{{ item.product }}</td>
+            <td style="text-align: right;">{{ item.total | currency }}</td>
+        </tr>
+        {% endfor %}
+        <tr>
+            <td><strong>Subtotal – Opening Stock</strong></td>
+            <td style="text-align: right;"><strong>{{ total_opening_stock | currency }}</strong></td>
+        </tr>
+    </tbody>
+</table>
+
+<p style="text-align: right;"><strong>Total Income:</strong> {{ total_income | currency }}</p>
+
+<hr>
+
+<h3>EXPENDITURE</h3>
+
+<p><strong>Product Payments</strong></p>
+<table style="width:100%; border-collapse: collapse;">
+    <tbody>
+        {% for item in product_payments %}
+        <tr>
+            <td>{{ item.product }}</td>
+            <td style="text-align: right;">{{ item.total | currency }}</td>
+        </tr>
+        {% endfor %}
+        <tr>
+            <td><strong>Subtotal – Product Payments</strong></td>
+            <td style="text-align: right;"><strong>{{ total_product_payments | currency }}</strong></td>
+        </tr>
+    </tbody>
+</table>
+
+<p><strong>Other Payments</strong></p>
+<table style="width:100%; border-collapse: collapse;">
+    <tbody>
+        {% for item in other_payments %}
+        <tr>
+            <td>{{ item.category }}</td>
+            <td style="text-align: right;">{{ item.total | currency }}</td>
+        </tr>
+        {% endfor %}
+        <tr>
+            <td><strong>Subtotal – Other Payments</strong></td>
+            <td style="text-align: right;"><strong>{{ total_other_payments | currency }}</strong></td>
+        </tr>
+    </tbody>
+</table>
+
+<p><strong>Closing Stock</strong></p>
+<table style="width:100%; border-collapse: collapse;">
+    <tbody>
+        {% for item in closing_stock %}
+        <tr>
+            <td>{{ item.product }}</td>
+            <td style="text-align: right;">{{ item.total | currency }}</td>
+        </tr>
+        {% endfor %}
+        <tr>
+            <td><strong>Subtotal – Closing Stock</strong></td>
+            <td style="text-align: right;"><strong>{{ total_closing_stock | currency }}</strong></td>
+        </tr>
+    </tbody>
+</table>
+
+<p style="text-align: right;"><strong>Total Expenditure:</strong> {{ total_expenditure | currency }}</p>
+
+<hr>
+
+<h3>NET PROFIT</h3>
+<p style="text-align: right;"><strong>Net Profit:</strong> {{ net_profit | currency }}</p>

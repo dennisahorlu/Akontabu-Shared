@@ -296,8 +296,6 @@ def sales():
         products=products
     )
 
-
-
 @app.route('/payments')
 @login_required
 def payments():
@@ -332,7 +330,7 @@ def payments():
 def reports():
     start = request.args.get('start')
     end = request.args.get('end')
-    tab = request.args.get('tab', 'profit')  # <-- Track which tab is active
+    tab = request.args.get('tab', 'profit')  # Track active tab
 
     def date_filter(query, model):
         if start and end:
@@ -348,12 +346,7 @@ def reports():
     payments = date_filter(Payment.query.filter_by(user_id=current_user.id), Payment).all()
     inventory = Product.query.filter_by(user_id=current_user.id).all()
 
-    total_revenue = sum(s.price * s.quantity for s in sales)
-    total_payments = sum(p.amount for p in payments)
-    sales_total = sum(s.quantity * s.price for s in sales)
-    payments_total = sum(p.amount for p in payments)
-    profit = total_revenue - total_payments
-
+    # 🟡 Create inventory_data FIRST
     inventory_data = [{
         'name': p.name,
         'quantity': p.quantity,
@@ -362,9 +355,21 @@ def reports():
         'value': p.cost_price * p.quantity
     } for p in inventory]
 
+    # 🟢 Now calculate totals
+    total_inventory_cost = sum(p['quantity'] * p['cost_price'] for p in inventory_data)
+    total_expected_sales = sum(p['quantity'] * p['selling_price'] for p in inventory_data)
+
+    total_revenue = sum(s.price * s.quantity for s in sales)
+    total_payments = sum(p.amount for p in payments)
+    sales_total = sum(s.quantity * s.price for s in sales)
+    payments_total = sum(p.amount for p in payments)
+    profit = total_revenue - total_payments
+
     return render_template(
         'reports.html',
         sales=sales,
+        total_inventory_cost=total_inventory_cost,
+        total_expected_sales=total_expected_sales,
         payments=payments,
         inventory_data=inventory_data,
         total_revenue=total_revenue,
@@ -375,9 +380,8 @@ def reports():
         start=start,
         end=end,
         now=datetime.now(),
-        tab=tab  # <-- Pass to template
+        tab=tab
     )
-
 
 @app.route('/reports/sales')
 @login_required
@@ -774,6 +778,260 @@ def export_payment_pdf():
         mimetype='application/pdf',
         download_name='payment_report.pdf',
         as_attachment=True
+    )
+
+@app.route('/export/inventory/excel')
+@login_required
+def export_inventory_excel():
+    start = request.args.get('start')
+    end = request.args.get('end')
+
+    # Get inventory
+    inventory = Product.query.filter_by(user_id=current_user.id).all()
+
+    # Compute total rows
+    grand_total_cost = sum(p.quantity * p.cost_price for p in inventory)
+    grand_expected_sales = sum(p.quantity * p.selling_price for p in inventory)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Inventory Report"
+
+    # Logo
+    logo_filename = current_user.logo_path or 'default_logo.png'
+    logo_full_path = os.path.join(app.config['UPLOAD_FOLDER'], logo_filename)
+
+    if os.path.exists(logo_full_path):
+        img = ExcelImage(logo_full_path)
+        img.height = 80
+        img.width = 160
+        ws.add_image(img, 'A1')
+
+    # Report Info
+    ws.merge_cells('A1:F1')
+    ws['A1'] = current_user.business_name or "AKONTABU"
+    ws['A1'].font = Font(size=14, bold=True)
+    ws['A1'].alignment = Alignment(horizontal="center")
+
+    ws.merge_cells('A2:F2')
+    ws['A2'] = "Inventory Report"
+    ws['A2'].font = Font(size=12, bold=True)
+    ws['A2'].alignment = Alignment(horizontal="center")
+
+    ws.merge_cells('A3:F3')
+    period_text = f"Period: {start} to {end}" if start and end else "Period: All Time"
+    ws['A3'] = period_text
+    ws['A3'].alignment = Alignment(horizontal="center")
+
+    ws.merge_cells('A4:F4')
+    ws['A4'] = f"Date Generated: {datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')}"
+    ws['A4'].alignment = Alignment(horizontal="center")
+
+    # Table Header
+    headers = ['Product', 'Quantity', 'Cost Price', 'Selling Price', 'Total Cost', 'Expected Sales']
+    header_row = 6
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=header_row, column=col_num, value=header)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center")
+        cell.border = Border(
+            left=Side(style='thin'), right=Side(style='thin'),
+            top=Side(style='thin'), bottom=Side(style='thin')
+        )
+
+    # Table Rows
+    for idx, p in enumerate(inventory, start=header_row + 1):
+        ws.cell(row=idx, column=1, value=p.name)
+        ws.cell(row=idx, column=2, value=p.quantity)
+        ws.cell(row=idx, column=3, value=p.cost_price)
+        ws.cell(row=idx, column=4, value=p.selling_price)
+        ws.cell(row=idx, column=5, value=p.quantity * p.cost_price)
+        ws.cell(row=idx, column=6, value=p.quantity * p.selling_price)
+
+    # Format numeric columns
+    currency_format = '"GHS" #,##0.00'
+    last_data_row = ws.max_row
+
+    for row in ws.iter_rows(min_row=header_row + 1, max_row=last_data_row):
+        for i, cell in enumerate(row):
+            cell.border = Border(
+                left=Side(style='thin'), right=Side(style='thin'),
+                top=Side(style='thin'), bottom=Side(style='thin')
+            )
+            if i in [2, 3, 4, 5]:  # Quantity, Cost, Selling, Totals
+                cell.number_format = currency_format
+                cell.alignment = Alignment(horizontal="right")
+
+    # Totals Row
+    total_row = last_data_row + 2
+    ws.cell(row=total_row, column=4, value="Total Cost:").font = Font(bold=True)
+    ws.cell(row=total_row, column=5, value=grand_total_cost).font = Font(bold=True)
+    ws.cell(row=total_row, column=5).number_format = currency_format
+    ws.cell(row=total_row, column=5).alignment = Alignment(horizontal="right")
+
+    ws.cell(row=total_row + 1, column=4, value="Expected Sales:").font = Font(bold=True)
+    ws.cell(row=total_row + 1, column=6, value=grand_expected_sales).font = Font(bold=True)
+    ws.cell(row=total_row + 1, column=6).number_format = currency_format
+    ws.cell(row=total_row + 1, column=6).alignment = Alignment(horizontal="right")
+
+    # Export
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return send_file(output, download_name='inventory_report.xlsx', as_attachment=True)
+
+@app.route('/export/inventory/pdf')
+@login_required
+def export_inventory_pdf():
+    start = request.args.get("start")
+    end = request.args.get("end")
+
+    def apply_date_filter(query):
+        if start and end:
+            try:
+                start_date = datetime.strptime(start, "%Y-%m-%d")
+                end_date = datetime.strptime(end, "%Y-%m-%d")
+                return query.filter(Product.date.between(start_date, end_date))
+            except ValueError:
+                pass
+        return query
+
+    inventory = Product.query.filter_by(user_id=current_user.id).all()  # Filter if needed
+
+    inventory_data = [{
+        'name': p.name,
+        'quantity': p.quantity,
+        'cost_price': p.cost_price,
+        'selling_price': p.selling_price,
+        'total_cost': p.quantity * p.cost_price,
+        'expected_sales': p.quantity * p.selling_price
+    } for p in inventory]
+
+    total_inventory_cost = sum(item['total_cost'] for item in inventory_data)
+    total_expected_sales = sum(item['expected_sales'] for item in inventory_data)
+
+    # Render HTML content from template
+    html_content = render_template(
+        'reports/partials/inventory.html',  
+        inventory_data=inventory_data,
+        total_inventory_cost=total_inventory_cost,
+        total_expected_sales=total_expected_sales,
+        start=start,
+        end=end,
+        now=datetime.now(),
+        current_user=current_user
+    )
+
+    # Generate PDF from rendered HTML
+    pdf_file = BytesIO()
+    HTML(string=html_content, base_url=request.host_url).write_pdf(pdf_file)
+    pdf_file.seek(0)
+
+    return send_file(
+        pdf_file,
+        mimetype='application/pdf',
+        download_name='inventory_report.pdf',
+        as_attachment=True
+    )
+
+@app.route('/reports/profit')
+@login_required
+def profit_report():
+    start = request.args.get('start')
+    end = request.args.get('end')
+
+    def date_filter(query, model):
+        if start and end:
+            try:
+                s_date = datetime.strptime(start, '%Y-%m-%d')
+                e_date = datetime.strptime(end, '%Y-%m-%d')
+                return query.filter(model.date.between(s_date, e_date))
+            except ValueError:
+                pass
+        return query
+
+    # Sales
+    sales_query = date_filter(Sale.query.filter_by(user_id=current_user.id), Sale)
+    sales = sales_query.all()
+
+    sales_breakdown = defaultdict(float)
+    total_sales = 0
+    for s in sales:
+        sales_breakdown[s.product.name] += s.quantity * s.price
+        total_sales += s.quantity * s.price
+
+    # Opening Stock - entries before start date
+    opening_stock = []
+    total_opening_stock = 0
+    if start:
+        s_date = datetime.strptime(start, '%Y-%m-%d')
+        products_before = Product.query.filter(Product.user_id == current_user.id, Product.date < s_date).all()
+        for p in products_before:
+            value = p.quantity * p.cost_price
+            opening_stock.append({'product': p.name, 'total': value})
+            total_opening_stock += value
+
+    # Product Payments - payments with product_id
+    payments_query = date_filter(Payment.query.filter_by(user_id=current_user.id), Payment)
+    product_payments = defaultdict(float)
+    total_product_payments = 0
+    for p in payments_query:
+        if p.product_id:
+            product = Product.query.get(p.product_id)
+            if product:
+                product_payments[product.name] += p.amount
+                total_product_payments += p.amount
+
+    # Other Payments - payments without product_id
+    other_payments = defaultdict(float)
+    total_other_payments = 0
+    for p in payments_query:
+        if not p.product_id:
+            other_payments[p.category or 'Other'] += p.amount
+            total_other_payments += p.amount
+
+    # Closing Stock - stock within the period
+    closing_stock = []
+    total_closing_stock = 0
+    products_now = Product.query.filter_by(user_id=current_user.id).all()
+    for p in products_now:
+        value = p.quantity * p.cost_price
+        closing_stock.append({'product': p.name, 'total': value})
+        total_closing_stock += value
+
+    # Final Calculations
+    total_income = total_sales + total_opening_stock
+    total_expenditure = total_product_payments + total_other_payments + total_closing_stock
+    net_profit = total_income - total_expenditure
+
+    return render_template(
+        'reports/partials/profit.html',
+        report_title="Income and Expenditure Report",
+        current_user=current_user,
+        now=datetime.now(),
+        start=start,
+        end=end,
+
+        # Breakdown data
+        sales_breakdown=[{'product': k, 'total': v} for k, v in sales_breakdown.items()],
+        total_sales=total_sales,
+
+        opening_stock=opening_stock,
+        total_opening_stock=total_opening_stock,
+
+        product_payments=[{'product': k, 'total': v} for k, v in product_payments.items()],
+        total_product_payments=total_product_payments,
+
+        other_payments=[{'category': k, 'total': v} for k, v in other_payments.items()],
+        total_other_payments=total_other_payments,
+
+        closing_stock=closing_stock,
+        total_closing_stock=total_closing_stock,
+
+        total_income=total_income,
+        total_expenditure=total_expenditure,
+        net_profit=net_profit
     )
 
 @app.route('/settings')
