@@ -35,7 +35,7 @@ class Payment(db.Model):
             self.total_cost = (self.base_cost or 0) + (self.transportation or 0) + (self.carriage or 0)
 
             if self.quantity and self.total_cost and self.profit_margin is not None:
-                self.cost_per_unit = self.total_cost / self.quantity
+                self.cost_per_unit = self.base_cost / self.quantity
                 self.selling_price = round_up_to_nearest_half(self.cost_per_unit * (1 + (self.profit_margin / 100)))
                 self.amount = self.total_cost
 

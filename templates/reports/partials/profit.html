@@ -1,3 +1,40 @@
+<style>
+   .report-header {
+    border-bottom: 2px solid #333;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-align: center;
+}
+
+.report-info {
+    flex-grow: 1;
+    text-align: center;
+}
+
+.report-info h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.report-info p {
+    margin: 4px 0;
+    font-size: 14px;
+    color: #555;
+    text-align: center;
+}
+
+.logo {
+    max-height: 60px;
+    max-width: 100px;
+    object-fit: contain;
+}
+</style>
+
 <div class="report-header">
     <div class="report-info">
         <h2>{{ report_title or "Income and Expenditure Report" }}</h2>
@@ -15,26 +52,21 @@
     {% endif %}
 </div>
 
-<h3>INCOME</h3>
+<div class="export-buttons">
+  <a id="excel-btn" href="/export/profit/excel">📥 Excel</a> |
+  <a id="pdf-btn" href="/export/profit/pdf">📄 PDF</a>
+</div>
 
-<p><strong>Sales</strong></p>
-<table style="width:100%; border-collapse: collapse;">
-    <tbody>
-        {% for item in sales_breakdown %}
-        <tr>
-            <td>{{ item.product }}</td>
-            <td style="text-align: right;">{{ item.total | currency }}</td>
-        </tr>
-        {% endfor %}
-        <tr>
-            <td><strong>Subtotal – Sales</strong></td>
-            <td style="text-align: right;"><strong>{{ total_sales | currency }}</strong></td>
-        </tr>
-    </tbody>
-</table>
+<!-- ========================== -->
+<!--         INCOME            -->
+<!-- ========================== -->
+<h3 style="border-bottom: 1px solid #ccc;">INCOME</h3>
 
 <p><strong>Opening Stock</strong></p>
-<table style="width:100%; border-collapse: collapse;">
+<table style="width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr><th>Product</th><th style="text-align: right;">Amount (GHS)</th></tr>
+    </thead>
     <tbody>
         {% for item in opening_stock %}
         <tr>
@@ -49,14 +81,42 @@
     </tbody>
 </table>
 
-<p style="text-align: right;"><strong>Total Income:</strong> {{ total_income | currency }}</p>
+<p><strong>Sales</strong></p>
+<table style="width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr><th>Product</th><th style="text-align: right;">Amount (GHS)</th></tr>
+    </thead>
+    <tbody>
+        {% for item in sales_breakdown %}
+        <tr>
+            <td>{{ item.product }}</td>
+            <td style="text-align: right;">{{ item.total | currency }}</td>
+        </tr>
+        {% endfor %}
+        <tr>
+            <td><strong>Subtotal – Sales</strong></td>
+            <td style="text-align: right;"><strong>{{ total_sales | currency }}</strong></td>
+        </tr>
+    </tbody>
+</table>
+
+<!-- Optional Other Income -->
+{# <p><strong>Other Income</strong></p> #}
+
+<p style="text-align: right; margin-top: 1em;"><strong>Total Income:</strong> {{ total_income | currency }}</p>
 
 <hr>
 
-<h3>EXPENDITURE</h3>
+<!-- ========================== -->
+<!--       EXPENDITURE         -->
+<!-- ========================== -->
+<h3 style="border-bottom: 1px solid #ccc;">EXPENDITURE</h3>
 
 <p><strong>Product Payments</strong></p>
-<table style="width:100%; border-collapse: collapse;">
+<table style="width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr><th>Product</th><th style="text-align: right;">Amount (GHS)</th></tr>
+    </thead>
     <tbody>
         {% for item in product_payments %}
         <tr>
@@ -72,7 +132,10 @@
 </table>
 
 <p><strong>Other Payments</strong></p>
-<table style="width:100%; border-collapse: collapse;">
+<table style="width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr><th>Category</th><th style="text-align: right;">Amount (GHS)</th></tr>
+    </thead>
     <tbody>
         {% for item in other_payments %}
         <tr>
@@ -88,7 +151,10 @@
 </table>
 
 <p><strong>Closing Stock</strong></p>
-<table style="width:100%; border-collapse: collapse;">
+<table style="width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr><th>Product</th><th style="text-align: right;">Amount (GHS)</th></tr>
+    </thead>
     <tbody>
         {% for item in closing_stock %}
         <tr>
@@ -103,9 +169,12 @@
     </tbody>
 </table>
 
-<p style="text-align: right;"><strong>Total Expenditure:</strong> {{ total_expenditure | currency }}</p>
+<p style="text-align: right; margin-top: 1em;"><strong>Total Expenditure:</strong> {{ total_expenditure | currency }}</p>
 
 <hr>
 
-<h3>NET PROFIT</h3>
-<p style="text-align: right;"><strong>Net Profit:</strong> {{ net_profit | currency }}</p>
+{% if net_profit >= 0 %}
+<h3 style="text-align: right; color: darkgreen;">Net Profit: {{ net_profit | currency }}</h3>
+{% else %}
+<h3 style="text-align: right; color: darkred;">Net Loss: {{ (net_profit * -1) | currency }}</h3>
+{% endif %}

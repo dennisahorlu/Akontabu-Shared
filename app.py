@@ -60,6 +60,86 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 def round_up_to_half(v): 
     return math.ceil(v * 2) / 2
 
+def get_profit_data(start, end):
+    def date_filter(query, model):
+        if start and end:
+            try:
+                s_date = datetime.strptime(start, '%Y-%m-%d')
+                e_date = datetime.strptime(end, '%Y-%m-%d')
+                return query.filter(model.date.between(s_date, e_date))
+            except ValueError:
+                pass
+        return query
+
+    # Sales
+    sales_query = date_filter(Sale.query.filter_by(user_id=current_user.id), Sale)
+    sales = sales_query.all()
+
+    sales_breakdown = defaultdict(float)
+    total_sales = 0
+    for s in sales:
+        sales_breakdown[s.product.name] += s.quantity * s.price
+        total_sales += s.quantity * s.price
+
+    # Opening Stock
+    opening_stock = []
+    total_opening_stock = 0
+    if start:
+        s_date = datetime.strptime(start, '%Y-%m-%d')
+        products_before = Product.query.filter(Product.user_id == current_user.id, Product.date < s_date).all()
+        for p in products_before:
+            value = p.quantity * p.cost_price
+            opening_stock.append({'product': p.name, 'total': value})
+            total_opening_stock += value
+
+    # Product Payments
+    payments_query = date_filter(Payment.query.filter_by(user_id=current_user.id), Payment)
+    product_payments = defaultdict(float)
+    total_product_payments = 0
+    other_payments = defaultdict(float)
+    total_other_payments = 0
+
+    for p in payments_query:
+        if p.product_id:
+            product = Product.query.get(p.product_id)
+            if product:
+                product_payments[product.name] += p.amount
+                total_product_payments += p.amount
+        else:
+            other_payments[p.payment_type or 'Other'] += p.amount
+            total_other_payments += p.amount
+
+
+    # Closing Stock
+    closing_stock = []
+    total_closing_stock = 0
+    products_now = Product.query.filter_by(user_id=current_user.id).all()
+    for p in products_now:
+        value = p.quantity * p.cost_price
+        closing_stock.append({'product': p.name, 'total': value})
+        total_closing_stock += value
+
+    # Final Calculations
+    total_income = total_sales 
+    total_expenditure = total_opening_stock + total_product_payments + total_other_payments - total_closing_stock
+    net_profit = total_income - total_expenditure
+
+    return {
+        "sales_breakdown": [{'product': k, 'total': v} for k, v in sales_breakdown.items()],
+        "total_sales": total_sales,
+        "opening_stock": opening_stock,
+        "total_opening_stock": total_opening_stock,
+        "product_payments": [{'product': k, 'total': v} for k, v in product_payments.items()],
+        "total_product_payments": total_product_payments,
+        "other_payments": [{'category': k, 'total': v} for k, v in other_payments.items()],
+        "total_other_payments": total_other_payments,
+        "closing_stock": closing_stock,
+        "total_closing_stock": total_closing_stock,
+        "total_income": total_income,
+        "total_expenditure": total_expenditure,
+        "net_profit": net_profit,
+    }
+
 # Auth middleware
 @app.before_request
 def load_user():
@@ -341,6 +421,8 @@ def reports():
             except ValueError:
                 flash("Invalid date range")
         return query
+    
+    profit_data = get_profit_data(start, end)
 
     sales = date_filter(Sale.query.filter_by(user_id=current_user.id), Sale).all()
     payments = date_filter(Payment.query.filter_by(user_id=current_user.id), Payment).all()
@@ -380,7 +462,8 @@ def reports():
         start=start,
         end=end,
         now=datetime.now(),
-        tab=tab
+        tab=tab,
+        **profit_data
     )
 
 @app.route('/reports/sales')
@@ -473,10 +556,6 @@ def export_sales_excel():
     wb = Workbook()
     ws = wb.active
     ws.title = "Sales Report"
-
-    # Add logo from upload folder
-    from openpyxl.drawing.image import Image as ExcelImage
-    import os
 
     logo_filename = current_user.logo_path or 'default_logo.png'
     logo_full_path = os.path.join(app.config['UPLOAD_FOLDER'], logo_filename)
@@ -951,58 +1030,58 @@ def profit_report():
                 pass
         return query
 
-    # Sales
+    # 🟢 Sales Data
     sales_query = date_filter(Sale.query.filter_by(user_id=current_user.id), Sale)
     sales = sales_query.all()
 
     sales_breakdown = defaultdict(float)
     total_sales = 0
     for s in sales:
-        sales_breakdown[s.product.name] += s.quantity * s.price
-        total_sales += s.quantity * s.price
+        amount = s.quantity * s.price
+        sales_breakdown[s.product.name] += amount
+        total_sales += amount
 
-    # Opening Stock - entries before start date
+    # 🟢 Opening Stock – products added before start date
     opening_stock = []
     total_opening_stock = 0
     if start:
         s_date = datetime.strptime(start, '%Y-%m-%d')
-        products_before = Product.query.filter(Product.user_id == current_user.id, Product.date < s_date).all()
+        products_before = Product.query.filter(Product.user_id == current_user.id, Product.created_at < s_date).all()
         for p in products_before:
-            value = p.quantity * p.cost_price
+            value = (p.cost_price or 0) * p.quantity
             opening_stock.append({'product': p.name, 'total': value})
             total_opening_stock += value
 
-    # Product Payments - payments with product_id
+    # 🟢 Payments
     payments_query = date_filter(Payment.query.filter_by(user_id=current_user.id), Payment)
     product_payments = defaultdict(float)
     total_product_payments = 0
+    other_payments = defaultdict(float)
+    total_other_payments = 0
+
     for p in payments_query:
         if p.product_id:
             product = Product.query.get(p.product_id)
             if product:
                 product_payments[product.name] += p.amount
                 total_product_payments += p.amount
-
-    # Other Payments - payments without product_id
-    other_payments = defaultdict(float)
-    total_other_payments = 0
-    for p in payments_query:
-        if not p.product_id:
-            other_payments[p.category or 'Other'] += p.amount
+        else:
+            key = p.payment_type or 'Other'  # Replacing p.category safely
+            other_payments[key] += p.amount
             total_other_payments += p.amount
 
-    # Closing Stock - stock within the period
+    # 🟢 Closing Stock – current available stock
     closing_stock = []
     total_closing_stock = 0
     products_now = Product.query.filter_by(user_id=current_user.id).all()
     for p in products_now:
-        value = p.quantity * p.cost_price
+        value = (p.cost_price or 0) * p.quantity
         closing_stock.append({'product': p.name, 'total': value})
         total_closing_stock += value
 
-    # Final Calculations
-    total_income = total_sales + total_opening_stock
-    total_expenditure = total_product_payments + total_other_payments + total_closing_stock
+    # 🧮 Final Calculations
+    total_income = total_sales
+    total_expenditure = total_opening_stock + total_product_payments + total_other_payments - total_closing_stock
     net_profit = total_income - total_expenditure
 
     return render_template(
@@ -1013,31 +1092,181 @@ def profit_report():
         start=start,
         end=end,
 
-        # Breakdown data
+        # INCOME
         sales_breakdown=[{'product': k, 'total': v} for k, v in sales_breakdown.items()],
         total_sales=total_sales,
-
         opening_stock=opening_stock,
         total_opening_stock=total_opening_stock,
+        total_income=total_income,
 
+        # EXPENDITURE
         product_payments=[{'product': k, 'total': v} for k, v in product_payments.items()],
         total_product_payments=total_product_payments,
-
         other_payments=[{'category': k, 'total': v} for k, v in other_payments.items()],
         total_other_payments=total_other_payments,
-
         closing_stock=closing_stock,
         total_closing_stock=total_closing_stock,
-
-        total_income=total_income,
         total_expenditure=total_expenditure,
+
+        # RESULT
         net_profit=net_profit
     )
+
+@app.route('/export/profit/excel')
+@login_required
+def export_profit_excel():
+    start = request.args.get('start')
+    end = request.args.get('end')
+
+    # Get profit data from shared function
+    profit_data = get_profit_data(start, end)
+
+    # Create workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Profit Report"
+
+    logo_filename = current_user.logo_path or 'default_logo.png'
+    logo_full_path = os.path.join(app.config['UPLOAD_FOLDER'], logo_filename)
+
+    if os.path.exists(logo_full_path):
+        img = ExcelImage(logo_full_path)
+        img.height = 80
+        img.width = 160
+        ws.add_image(img, 'A1')
+
+    # Header Info
+    ws.merge_cells('A1:E1')
+    ws['A1'] = current_user.business_name or "AKONTABU"
+    ws['A1'].font = Font(size=14, bold=True)
+    ws['A1'].alignment = Alignment(horizontal="center")
+
+    ws.merge_cells('A2:E2')
+    ws['A2'] = "Income and Expenditure Report"
+    ws['A2'].font = Font(size=12, bold=True)
+    ws['A2'].alignment = Alignment(horizontal="center")
+
+    ws.merge_cells('A3:E3')
+    period_text = f"Period: {start} to {end}" if start and end else "Period: All Time"
+    ws['A3'] = period_text
+    ws['A3'].alignment = Alignment(horizontal="center")
+
+    ws.merge_cells('A4:E4')
+    ws['A4'] = f"Date Generated: {datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')}"
+    ws['A4'].alignment = Alignment(horizontal="center")
+
+    row = 6
+    currency_format = '"GHS" #,##0.00'
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+
+    def write_section(title, data, subtotal, label):
+        nonlocal row
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
+        ws.cell(row=row, column=1, value=title).font = Font(bold=True)
+        row += 1
+        ws.cell(row=row, column=1, value='Item')
+        ws.cell(row=row, column=2, value='Amount')
+        ws.cell(row=row, column=1).font = ws.cell(row=row, column=2).font = Font(bold=True)
+        row += 1
+
+        for item in data:
+            name = item.get('product') or item.get('category')
+            value = item.get('total')
+            ws.cell(row=row, column=1, value=name)
+            ws.cell(row=row, column=2, value=value)
+            ws.cell(row=row, column=2).number_format = currency_format
+            ws.cell(row=row, column=2).alignment = Alignment(horizontal="right")
+            row += 1
+
+        ws.cell(row=row, column=1, value=f"Subtotal – {label}")
+        ws.cell(row=row, column=2, value=subtotal)
+        ws.cell(row=row, column=2).number_format = currency_format
+        ws.cell(row=row, column=2).font = Font(bold=True)
+        ws.cell(row=row, column=2).alignment = Alignment(horizontal="right")
+        row += 2
+
+    # INCOME SECTIONS
+    write_section("Opening Stock", profit_data['opening_stock'], profit_data['total_opening_stock'], "Opening Stock")
+    write_section("Sales", profit_data['sales_breakdown'], profit_data['total_sales'], "Sales")
+
+    # Total Income
+    ws.cell(row=row, column=1, value="Total Income")
+    ws.cell(row=row, column=2, value=profit_data['total_income'])
+    ws.cell(row=row, column=2).number_format = currency_format
+    ws.cell(row=row, column=2).font = Font(bold=True)
+    ws.cell(row=row, column=2).alignment = Alignment(horizontal="right")
+    row += 2
+
+    # EXPENDITURE SECTIONS
+    write_section("Product Payments", profit_data['product_payments'], profit_data['total_product_payments'], "Product Payments")
+    write_section("Other Payments", profit_data['other_payments'], profit_data['total_other_payments'], "Other Payments")
+    write_section("Closing Stock", profit_data['closing_stock'], profit_data['total_closing_stock'], "Closing Stock")
+
+    # Total Expenditure
+    ws.cell(row=row, column=1, value="Total Expenditure")
+    ws.cell(row=row, column=2, value=profit_data['total_expenditure'])
+    ws.cell(row=row, column=2).number_format = currency_format
+    ws.cell(row=row, column=2).font = Font(bold=True)
+    ws.cell(row=row, column=2).alignment = Alignment(horizontal="right")
+    row += 2
+
+    # NET PROFIT/LOSS
+    net = profit_data['net_profit']
+    ws.cell(row=row, column=1, value="Net Profit" if net >= 0 else "Net Loss")
+    ws.cell(row=row, column=2, value=abs(net))
+    ws.cell(row=row, column=2).number_format = currency_format
+    ws.cell(row=row, column=2).font = Font(size=12, bold=True, color="006100" if net >= 0 else "9C0006")
+    ws.cell(row=row, column=2).alignment = Alignment(horizontal="right")
+
+    # Export file
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return send_file(output, download_name='profit_report.xlsx', as_attachment=True)
+
 
 @app.route('/settings')
 @login_required
 def settings():
     return render_template('settings.html', current_currency=current_user.currency_code)
+
+@app.route('/export/profit/pdf')
+@login_required
+def export_profit_pdf():
+    start = request.args.get("start")
+    end = request.args.get("end")
+
+    # Get all profit data using shared logic
+    profit_data = get_profit_data(start, end)
+
+    # Render HTML template with full report layout
+    html_content = render_template(
+        'reports/partials/profit.html',
+        report_title="Income and Expenditure Report",
+        current_user=current_user,
+        now=datetime.now(),
+        start=start,
+        end=end,
+        **profit_data
+    )
+
+    # Generate PDF from HTML
+    pdf_file = BytesIO()
+    HTML(string=html_content, base_url=request.host_url).write_pdf(pdf_file)
+    pdf_file.seek(0)
+
+    return send_file(
+        pdf_file,
+        mimetype='application/pdf',
+        download_name='profit_report.pdf',
+        as_attachment=True
+    )
 
 
 @app.route('/logout')
